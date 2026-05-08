@@ -1,0 +1,321 @@
+import { useState, useEffect } from 'react';
+import { Check, X, Lightbulb, Sparkles, Brain, RefreshCw, RotateCcw, BookOpen } from 'lucide-react';
+import { generateGrammarQuiz } from '../utils/deepseekAPI';
+import { getCachedRequest, hasOngoingRequest } from '../utils/requestCache';
+
+export default function GrammarQuiz({ data, vocab = [], lessonId }) {
+    // Generate unique storage key for this grammar topic
+    const getStorageKey = () => `grammar_quiz_${data.title}`;
+    const getRequestKey = () => `grammar_quiz_req_${data.title}`;
+
+    // Helper to load session
+    const loadSession = () => {
+        try {
+            const savedSession = localStorage.getItem('grammar_quiz_session');
+            if (savedSession) {
+                const session = JSON.parse(savedSession);
+                if (session.lessonId === lessonId) return session;
+            }
+        } catch (error) {
+            console.error('Failed to load grammar quiz session:', error);
+        }
+        return null;
+    };
+
+    // Initialize state lazily
+    const [questions, setQuestions] = useState(() => {
+        const session = loadSession();
+        if (session) return session.questions;
+
+        // Fallback to legacy cache (also localStorage now)
+        try {
+            const cachedQuestions = localStorage.getItem(getStorageKey());
+            if (cachedQuestions) {
+                const parsed = JSON.parse(cachedQuestions);
+                if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+            }
+        } catch (e) { }
+        return data?.quiz || [];
+    });
+
+    const [answers, setAnswers] = useState(() => loadSession()?.answers ?? {});
+    const [submitted, setSubmitted] = useState(() => loadSession()?.submitted ?? false);
+    const [showExplanations, setShowExplanations] = useState(() => loadSession()?.showExplanations ?? {});
+    const [isGenerating, setIsGenerating] = useState(() => hasOngoingRequest(getRequestKey()));
+    const [isAIGenerated, setIsAIGenerated] = useState(() => {
+        const session = loadSession();
+        if (session) return session.isAIGenerated;
+
+        // Fallback to legacy cache check (also localStorage now)
+        try {
+            const cachedQuestions = localStorage.getItem(getStorageKey());
+            if (cachedQuestions) {
+                const parsed = JSON.parse(cachedQuestions);
+                if (Array.isArray(parsed) && parsed.length > 0) return true;
+            }
+        } catch (e) { }
+        return false;
+    });
+
+    // Save session to localStorage
+    useEffect(() => {
+        const session = {
+            lessonId,
+            questions,
+            answers,
+            submitted,
+            showExplanations,
+            isAIGenerated
+        };
+        localStorage.setItem('grammar_quiz_session', JSON.stringify(session));
+
+        // Also keep the legacy cache for now if it's AI generated
+        if (isAIGenerated && questions.length > 0) {
+            localStorage.setItem(getStorageKey(), JSON.stringify(questions));
+        }
+    }, [lessonId, questions, answers, submitted, showExplanations, isAIGenerated]);
+
+    // 组件挂载时检查是否有正在进行的生成请�?
+    useEffect(() => {
+        if (hasOngoingRequest(getRequestKey())) {
+            setIsGenerating(true);
+            // 继续等待之前的请�?
+            getCachedRequest(getRequestKey(), () => Promise.resolve(), 'grammar-quiz-resume')
+                .then(result => {
+                    if (result && Array.isArray(result)) {
+                        setQuestions(result);
+                        setAnswers({});
+                        setSubmitted(false);
+                        setIsAIGenerated(true);
+                    }
+                })
+                .catch(error => {
+                    console.error('恢复生成失败:', error);
+                })
+                .finally(() => {
+                    setIsGenerating(false);
+                });
+        }
+    }, []);
+
+    const generateQuiz = async () => {
+        if (!vocab || vocab.length === 0) {
+            alert('当前课程没有词汇数据');
+            return;
+        }
+
+        setIsGenerating(true);
+        try {
+            const newQuiz = await getCachedRequest(
+                getRequestKey(),
+                () => generateGrammarQuiz(data, vocab, 5),
+                'grammar-quiz'
+            );
+            setQuestions(newQuiz);
+            setAnswers({});
+            setSubmitted(false);
+            setShowExplanations({});
+            setIsAIGenerated(true);
+        } catch (error) {
+            alert('生成题目失败: ' + error.message);
+        } finally {
+            setIsGenerating(false);
+        }
+    };
+
+    const resetToDefault = () => {
+        if (confirm('确定要恢复到默认题目吗？这将清除AI生成的题目�?)) {
+            setQuestions(data?.quiz || []);
+            setAnswers({});
+            setSubmitted(false);
+            setShowExplanations({});
+            setIsAIGenerated(false);
+            try {
+                localStorage.removeItem(getStorageKey());
+                localStorage.removeItem('grammar_quiz_session');
+            } catch (error) {
+                console.error('Failed to clear cached quiz:', error);
+            }
+        }
+    };
+
+    const handleAnswer = (qIndex, optionIndex) => {
+        if (!submitted) {
+            setAnswers(prev => ({ ...prev, [qIndex]: optionIndex }));
+        }
+    };
+
+    const submitAnswers = () => {
+        const unanswered = questions.filter((_, idx) => answers[idx] === undefined);
+        if (unanswered.length > 0) {
+            if (!confirm(`还有 ${unanswered.length} 道题未作答，确定要提交吗？`)) {
+                return;
+            }
+        }
+        setSubmitted(true);
+    };
+
+    const resetQuiz = () => {
+        setAnswers({});
+        setSubmitted(false);
+        setShowExplanations({});
+    };
+
+    const toggleExplanation = (qIdx) => {
+        setShowExplanations(prev => ({ ...prev, [qIdx]: !prev[qIdx] }));
+    };
+
+    const getStats = () => {
+        if (!submitted) return null;
+        const correct = questions.filter((q, idx) => answers[idx] === q.answer).length;
+        const total = questions.length;
+        return { correct, total, percentage: Math.round((correct / total) * 100) };
+    };
+
+    const stats = getStats();
+
+    return (
+        <div className="max-w-2xl mx-auto space-y-6">
+            {/* Explanation Card */}
+            <div className="bg-white rounded-xl shadow-sm border border-spanish-yellow/30 overflow-hidden">
+                <div className="bg-yellow-50 p-4 border-b border-yellow-100 flex items-center gap-2 text-yellow-800 font-bold">
+                    <Lightbulb size={20} />
+                    语法重点：{data.title}
+                </div>
+                <div className="p-6 text-slate-700 leading-relaxed whitespace-pre-line">
+                    {data.content}
+                </div>
+            </div>
+
+            {/* Control Buttons */}
+            <div className="flex justify-between items-center">
+                <div className="text-sm text-slate-600">
+                    �?{questions.length} 道题 {isAIGenerated && '(AI生成)'}
+                </div>
+                <div className="flex gap-2">
+                    {submitted && (
+                        <button
+                            onClick={resetQuiz}
+                            className="px-4 py-2 bg-slate-500 text-white rounded-lg hover:bg-slate-600 transition-all"
+                        >
+                            重新作答
+                        </button>
+                    )}
+                    {isAIGenerated && (
+                        <button
+                            onClick={resetToDefault}
+                            className="flex items-center gap-2 px-3 py-2 bg-slate-400 text-white rounded-lg hover:bg-slate-500 transition-all text-sm"
+                            title="恢复到默认题�?
+                        >
+                            <RotateCcw size={14} />
+                            恢复默认
+                        </button>
+                    )}
+                    <button
+                        onClick={generateQuiz}
+                        disabled={isGenerating}
+                        className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:from-purple-700 hover:to-pink-700 disabled:opacity-50 transition-all shadow-md"
+                    >
+                        {isGenerating ? (
+                            <>
+                                <RefreshCw size={16} className="animate-spin" />
+                                生成�?..
+                            </>
+                        ) : (
+                            <>
+                                <Sparkles size={16} />
+                                AI生成题目
+                            </>
+                        )}
+                    </button>
+                </div>
+            </div>
+
+            {/* Stats (after submission) */}
+            {stats && (
+                <div className="bg-gradient-to-r from-purple-50 to-pink-50 border-2 border-purple-200 rounded-xl p-6">
+                    <div className="flex items-center gap-2 mb-4">
+                        <Brain size={20} className="text-purple-600" />
+                        <h3 className="text-lg font-bold text-purple-900">评分结果</h3>
+                    </div>
+                    <div className="grid grid-cols-3 gap-4">
+                        <div className="text-center">
+                            <div className="text-3xl font-bold text-purple-600">{stats.percentage}%</div>
+                            <div className="text-sm text-slate-600">正确�?/div>
+                        </div>
+                        <div className="text-center">
+                            <div className="text-2xl font-bold text-green-600">{stats.correct}</div>
+                            <div className="text-sm text-slate-600">答对</div>
+                        </div>
+                        <div className="text-center">
+                            <div className="text-2xl font-bold text-red-600">{stats.total - stats.correct}</div>
+                            <div className="text-sm text-slate-600">答错</div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Quiz Section */}
+            <div className="space-y-6">
+                {questions.map((q, qIdx) => {
+                    const userAnswer = answers[qIdx];
+                    const showResult = submitted;
+
+                    return (
+                        <div key={qIdx} className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+                            <p className="font-medium text-lg mb-4 text-slate-800">{qIdx + 1}. {q.question}</p>
+                            <div className="space-y-2">
+                                {q.options.map((opt, optIdx) => {
+                                    const isSelected = userAnswer === optIdx;
+                                    const isCorrect = q.answer === optIdx;
+
+                                    let style = "border-slate-200 hover:bg-slate-50 cursor-pointer";
+                                    if (showResult) {
+                                        if (isCorrect) {
+                                            style = "border-green-500 bg-green-50 text-green-700";
+                                        } else if (isSelected) {
+                                            style = "border-red-500 bg-red-50 text-red-700";
+                                        } else {
+                                            style = "opacity-50 border-slate-100";
+                                        }
+                                    } else if (isSelected) {
+                                        style = "border-spanish-yellow bg-yellow-50";
+                                    }
+
+                                    return (
+                                        <button
+                                            key={optIdx}
+                                            onClick={() => handleAnswer(qIdx, optIdx)}
+                                            disabled={showResult}
+                                            className={`w-full p-3 text-left rounded-lg border-2 transition-all flex justify-between items-center ${style} ${!showResult ? 'cursor-pointer' : 'cursor-default'}`}
+                                        >
+                                            <span>{opt}</span>
+                                            {showResult && isCorrect && <Check size={18} className="text-green-600" />}
+                                            {showResult && isSelected && !isCorrect && <X size={18} className="text-red-600" />}
+                                        </button>
+                                    );
+                                })}</div>
+                            {/* Show correct answer if wrong */}
+                            {showResult && userAnswer !== q.answer && (
+                                <div className="mt-3 text-sm text-green-700 bg-green-50 p-2 rounded">
+                                    �?正确答案：{q.options[q.answer]}
+                                </div>
+                            )}
+                        </div>
+                    );
+                })}
+            </div>
+
+            {/* Submit Button */}
+            {!submitted && (
+                <button
+                    onClick={submitAnswers}
+                    className="w-full flex items-center justify-center gap-2 py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-bold text-lg hover:from-indigo-700 hover:to-purple-700 transition-all shadow-lg"
+                >
+                    <Brain size={20} />
+                    提交答案
+                </button>
+            )}
+        </div>
+    );
+}

@@ -1,0 +1,352 @@
+[
+    {
+        "id": "init_1",
+        "spanish": "Hola",
+        "chinese": "你好",
+        "lesson": "L1",
+        "mastered": false
+    },
+    {
+        "id": "init_2",
+        "spanish": "Buenos días",
+        "chinese": "早上好",
+        "lesson": "L1",
+        "mastered": false
+    },
+    {
+        "id": "init_3",
+        "spanish": "Buenas tardes",
+        "chinese": "下午好",
+        "lesson": "L1",
+        "mastered": false
+    },
+    {
+        "id": "init_4",
+        "spanish": "Buenas noches",
+        "chinese": "晚上好/晚安",
+        "lesson": "L1",
+        "mastered": false
+    },
+    {
+        "id": "init_5",
+        "spanish": "Adiós",
+        "chinese": "再见",
+        "lesson": "L1",
+        "mastered": false
+    },
+    {
+        "id": "init_6",
+        "spanish": "Gracias",
+        "chinese": "谢谢",
+        "lesson": "L1",
+        "mastered": false
+    },
+    {
+        "id": "init_7",
+        "spanish": "De nada",
+        "chinese": "不客气",
+        "lesson": "L1",
+        "mastered": false
+    },
+    {
+        "id": "init_8",
+        "spanish": "¿Cómo estás?",
+        "chinese": "你好吗？",
+        "lesson": "L1",
+        "mastered": false
+    },
+    {
+        "id": "init_9",
+        "spanish": "Muy bien",
+        "chinese": "很好",
+        "lesson": "L1",
+        "mastered": false
+    },
+    {
+        "id": "init_10",
+        "spanish": "Yo",
+        "chinese": "我",
+        "lesson": "L2",
+        "mastered": false
+    },
+    {
+        "id": "init_11",
+        "spanish": "Tú",
+        "chinese": "你",
+        "lesson": "L2",
+        "mastered": false
+    },
+    {
+        "id": "init_12",
+        "spanish": "Él",
+        "chinese": "他",
+        "lesson": "L2",
+        "mastered": false
+    },
+    {
+        "id": "init_13",
+        "spanish": "Ella",
+        "chinese": "她",
+        "lesson": "L2",
+        "mastered": false
+    },
+    {
+        "id": "init_14",
+        "spanish": "Nosotros",
+        "chinese": "我们",
+        "lesson": "L2",
+        "mastered": false
+    },
+    {
+        "id": "init_15",
+        "spanish": "Vosotros",
+        "chinese": "你们",
+        "lesson": "L2",
+        "mastered": false
+    },
+    {
+        "id": "init_16",
+        "spanish": "Ellos",
+        "chinese": "他们",
+        "lesson": "L2",
+        "mastered": false
+    },
+    {
+        "id": "init_17",
+        "spanish": "Ser",
+        "chinese": "是",
+        "lesson": "L2",
+        "mastered": false
+    },
+    {
+        "id": "init_18",
+        "spanish": "Estudiante",
+        "chinese": "学生",
+        "lesson": "L2",
+        "mastered": false
+    },
+    {
+        "id": "init_19",
+        "spanish": "Profesor",
+        "chinese": "老师",
+        "lesson": "L2",
+        "mastered": false
+    },
+    {
+        "id": "init_20",
+        "spanish": "Médico",
+        "chinese": "医生",
+        "lesson": "L2",
+        "mastered": false
+    },
+    {
+        "id": "init_21",
+        "spanish": "Uno",
+        "chinese": "一",
+        "lesson": "L3",
+        "mastered": false
+    },
+    {
+        "id": "init_22",
+        "spanish": "Dos",
+        "chinese": "二",
+        "lesson": "L3",
+        "mastered": false
+    },
+    {
+        "id": "init_23",
+        "spanish": "Tres",
+        "chinese": "三",
+        "lesson": "L3",
+        "mastered": false
+    },
+    {
+        "id": "init_24",
+        "spanish": "Cuatro",
+        "chinese": "四",
+        "lesson": "L3",
+        "mastered": false
+    },
+    {
+        "id": "init_25",
+        "spanish": "Cinco",
+        "chinese": "五",
+        "lesson": "L3",
+        "mastered": false
+    },
+    {
+        "id": "init_26",
+        "spanish": "Padre",
+        "chinese": "父亲",
+        "lesson": "L4",
+        "mastered": false
+    },
+    {
+        "id": "init_27",
+        "spanish": "Madre",
+        "chinese": "母亲",
+        "lesson": "L4",
+        "mastered": false
+    },
+    {
+        "id": "init_28",
+        "spanish": "Hermano",
+        "chinese": "兄弟",
+        "lesson": "L4",
+        "mastered": false
+    },
+    {
+        "id": "init_29",
+        "spanish": "Hermana",
+        "chinese": "姐妹",
+        "lesson": "L4",
+        "mastered": false
+    },
+    {
+        "id": "init_30",
+        "spanish": "Casa",
+        "chinese": "家/房子",
+        "lesson": "L4",
+        "mastered": false
+    },
+    {
+        "id": "init_31",
+        "spanish": "Libro",
+        "chinese": "书",
+        "lesson": "L5",
+        "mastered": false
+    },
+    {
+        "id": "init_32",
+        "spanish": "Mesa",
+        "chinese": "桌子",
+        "lesson": "L5",
+        "mastered": false
+    },
+    {
+        "id": "init_33",
+        "spanish": "Silla",
+        "chinese": "椅子",
+        "lesson": "L5",
+        "mastered": false
+    },
+    {
+        "id": "init_34",
+        "spanish": "Universidad",
+        "chinese": "大学",
+        "lesson": "L5",
+        "mastered": false
+    },
+    {
+        "id": "init_35",
+        "spanish": "Biblioteca",
+        "chinese": "图书馆",
+        "lesson": "L5",
+        "mastered": false
+    },
+    {
+        "id": "init_36",
+        "spanish": "Comer",
+        "chinese": "吃",
+        "lesson": "L6",
+        "mastered": false
+    },
+    {
+        "id": "init_37",
+        "spanish": "Beber",
+        "chinese": "喝",
+        "lesson": "L6",
+        "mastered": false
+    },
+    {
+        "id": "init_38",
+        "spanish": "Vivir",
+        "chinese": "居住/生活",
+        "lesson": "L6",
+        "mastered": false
+    },
+    {
+        "id": "init_39",
+        "spanish": "Trabajar",
+        "chinese": "工作",
+        "lesson": "L6",
+        "mastered": false
+    },
+    {
+        "id": "init_40",
+        "spanish": "Estudiar",
+        "chinese": "学习",
+        "lesson": "L6",
+        "mastered": false
+    },
+    {
+        "id": "init_41",
+        "spanish": "Grande",
+        "chinese": "大的",
+        "lesson": "L7",
+        "mastered": false
+    },
+    {
+        "id": "init_42",
+        "spanish": "Pequeño",
+        "chinese": "小的",
+        "lesson": "L7",
+        "mastered": false
+    },
+    {
+        "id": "init_43",
+        "spanish": "Bonito",
+        "chinese": "漂亮的",
+        "lesson": "L7",
+        "mastered": false
+    },
+    {
+        "id": "init_44",
+        "spanish": "Feo",
+        "chinese": "丑的",
+        "lesson": "L7",
+        "mastered": false
+    },
+    {
+        "id": "init_45",
+        "spanish": "Nuevo",
+        "chinese": "新的",
+        "lesson": "L7",
+        "mastered": false
+    },
+    {
+        "id": "init_46",
+        "spanish": "Viejo",
+        "chinese": "旧的/老的",
+        "lesson": "L7",
+        "mastered": false
+    },
+    {
+        "id": "init_47",
+        "spanish": "Mucho",
+        "chinese": "很多",
+        "lesson": "L8",
+        "mastered": false
+    },
+    {
+        "id": "init_48",
+        "spanish": "Poco",
+        "chinese": "很少",
+        "lesson": "L8",
+        "mastered": false
+    },
+    {
+        "id": "init_49",
+        "spanish": "Todo",
+        "chinese": "全部",
+        "lesson": "L8",
+        "mastered": false
+    },
+    {
+        "id": "init_50",
+        "spanish": "Nada",
+        "chinese": "没有什么",
+        "lesson": "L8",
+        "mastered": false
+    }
+]
