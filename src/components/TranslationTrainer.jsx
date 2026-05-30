@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Brain, Check, X, Loader2, ArrowRight, RefreshCw, MessageSquare, Trophy, RotateCcw } from 'lucide-react';
-import { generateTranslationQuestions, gradeTranslationWithAI } from '../utils/deepseekAPI';
+import { generateTranslationQuestions, gradeTranslationWithAI } from '../utils/mimoAPI';
 
 export default function TranslationTrainer({ data, vocab, lessonId, previousKnowledge }) {
     const [questions, setQuestions] = useState([]);

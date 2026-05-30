@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { BookOpen, Check, X, Loader2, ArrowRight, RefreshCw, HelpCircle, CheckCircle2, AlertCircle, ChevronLeft, ChevronRight, Trophy, RotateCcw } from 'lucide-react';
-import { generateReadingComprehension } from '../utils/deepseekAPI';
+import { generateReadingComprehension } from '../utils/mimoAPI';
 
 export default function ReadingComp({ data, vocab, grammarTitle, lessonId, previousKnowledge }) {
     const [content, setContent] = useState(null);

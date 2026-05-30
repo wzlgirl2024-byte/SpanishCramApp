@@ -53,14 +53,14 @@ export default function TeachingAssistant({ apiKey }) {
         setLoading(true);
 
         try {
-            const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
+            const response = await fetch('https://api.xiaomimimo.com/v1/chat/completions', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${apiKey}`
                 },
                 body: JSON.stringify({
-                    model: 'deepseek-chat',
+                    model: 'mimo-v2.5',
                     messages: [
                         {
                             role: 'system',

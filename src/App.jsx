@@ -11,14 +11,14 @@ import ApiKeyManager from './components/ApiKeyManager';
 import StudyNotes from './components/StudyNotes';
 import TeachingAssistant from './components/TeachingAssistant';
 import SpeakingPractice from './components/SpeakingPractice';
-import { generateTranslationQuestions, generateGrammarQuiz, generateReadingComprehension, generateSmartContent } from './utils/deepseekAPI';
+import { generateTranslationQuestions, generateGrammarQuiz, generateReadingComprehension, generateSmartContent } from './utils/mimoAPI';
 
 function App() {
   const [activeLessonId, setActiveLessonId] = useState(null);
   const [activeTab, setActiveTab] = useState('vocab');
   const [showSettingsModal, setShowSettingsModal] = useState(false);
-  const [hasApiKey, setHasApiKey] = useState(!!localStorage.getItem('deepseek_api_key'));
-  const [apiKey, setApiKey] = useState(localStorage.getItem('deepseek_api_key') || '');
+  const [hasApiKey, setHasApiKey] = useState(!!localStorage.getItem('mimo_api_key'));
+  const [apiKey, setApiKey] = useState(localStorage.getItem('mimo_api_key') || '');
 
   // Smart Content State
   const [smartContent, setSmartContent] = useState(null);
@@ -26,7 +26,7 @@ function App() {
 
   // Check if API key exists on first load
   useEffect(() => {
-    const hasKey = localStorage.getItem('deepseek_api_key');
+    const hasKey = localStorage.getItem('mimo_api_key');
     if (!hasKey) {
       setShowSettingsModal(true);
     }
@@ -76,7 +76,7 @@ function App() {
           setSmartLoading(true);
           try {
             // Only generate if API key is set
-            if (localStorage.getItem('deepseek_api_key')) {
+            if (localStorage.getItem('mimo_api_key')) {
               const content = await generateSmartContent(activeLesson);
               setSmartContent(content);
               localStorage.setItem(cacheKey, JSON.stringify(content));
@@ -292,7 +292,7 @@ function App() {
                 <h3 className="font-bold text-blue-900 mb-2">💡 温馨提示</h3>
                 <ul className="text-sm text-blue-800 space-y-1">
                   <li>• 您的API Key仅保存在本地浏览器中</li>
-                  <li>• 每位同学使用自己的DeepSeek账户额度</li>
+                  <li>• 每位同学使用自己的MiMo账户额度</li>
                   <li>• 可随时在右上角⚙️图标中修改或清除</li>
                   <li>• 不设置也可以使用，但无法使用AI功能</li>
                 </ul>

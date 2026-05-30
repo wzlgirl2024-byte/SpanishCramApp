@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { BookOpen, Check, X, Loader2, ArrowRight, RefreshCw, HelpCircle, CheckCircle2, AlertCircle, ChevronLeft, ChevronRight, Trophy, RotateCcw, Sparkles, Lightbulb } from 'lucide-react';
-import { generateGrammarQuiz, generateGrammarExplanation } from '../utils/deepseekAPI';
+import { generateGrammarQuiz, generateGrammarExplanation } from '../utils/mimoAPI';
 import ReactMarkdown from 'react-markdown';
 
 export default function GrammarQuiz({ data, vocab, lessonId, previousKnowledge, smartContent, smartLoading }) {

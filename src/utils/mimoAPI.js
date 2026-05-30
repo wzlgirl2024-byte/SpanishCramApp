@@ -1,11 +1,11 @@
-// API配置 - 用户需要自己提供API Key
-const API_URL = 'https://api.deepseek.com/v1/chat/completions';
+// API配置 - 小米 MiMo API
+const API_URL = 'https://api.xiaomimimo.com/v1/chat/completions';
 
 // 获取用户保存的API Key
 function getApiKey() {
-    const key = localStorage.getItem('deepseek_api_key');
+    const key = localStorage.getItem('mimo_api_key');
     if (!key) {
-        throw new Error('请先设置API Key');
+        throw new Error('请先设置MiMo API Key');
     }
     return key;
 }
@@ -59,7 +59,7 @@ function formatPreviousKnowledge(previousKnowledge) {
 }
 
 /**
- * 调用DeepSeek API生成翻译题目
+ * 调用MiMo API生成翻译题目
  * @param {Array} vocab - 当前课词汇列表
  * @param {number} count - 生成题目数量
  * @param {string} direction - 'zh-es' | 'es-zh' | 'both'
@@ -110,7 +110,7 @@ ${prevKnowledgeText}
                 'Authorization': `Bearer ${apiKey}`
             },
             body: JSON.stringify({
-                model: 'deepseek-chat',
+                model: 'mimo-v2.5',
                 messages: [
                     {
                         role: 'system',
@@ -145,7 +145,7 @@ ${prevKnowledgeText}
         return questions.filter(q => q.q && q.a && q.type);
 
     } catch (error) {
-        console.error('DeepSeek API调用失败:', error);
+        console.error('MiMo API调用失败:', error);
         throw error;
     }
 }
@@ -153,7 +153,7 @@ ${prevKnowledgeText}
 /**
  * 测试API连接
  */
-export async function testDeepSeekAPI() {
+export async function testMiMoAPI() {
     try {
         const apiKey = getApiKey();
         const response = await fetch(API_URL, {
@@ -163,7 +163,7 @@ export async function testDeepSeekAPI() {
                 'Authorization': `Bearer ${apiKey}`
             },
             body: JSON.stringify({
-                model: 'deepseek-chat',
+                model: 'mimo-v2.5',
                 messages: [{ role: 'user', content: 'Hello' }],
                 max_tokens: 10
             })
@@ -213,7 +213,7 @@ export async function gradeTranslationWithAI(userAnswer, correctAnswer, original
                 'Authorization': `Bearer ${apiKey}`
             },
             body: JSON.stringify({
-                model: 'deepseek-chat',
+                model: 'mimo-v2.5',
                 messages: [
                     {
                         role: 'system',
@@ -302,7 +302,7 @@ ${prevKnowledgeText}
                 'Authorization': `Bearer ${apiKey}`
             },
             body: JSON.stringify({
-                model: 'deepseek-chat',
+                model: 'mimo-v2.5',
                 messages: [
                     { role: 'system', content: '你是专业的西班牙语教师。设计题目时，请务必严格遵守词汇限制，不要使用学生没学过的词。' },
                     { role: 'user', content: prompt }
@@ -389,7 +389,7 @@ ${prevKnowledgeText}
                 'Authorization': `Bearer ${apiKey}`
             },
             body: JSON.stringify({
-                model: 'deepseek-chat',
+                model: 'mimo-v2.5',
                 messages: [
                     { role: 'system', content: '你是专业的西班牙语教师。创作阅读材料时，请务必严格遵守词汇限制，确保初学者能读懂。' },
                     { role: 'user', content: prompt }
@@ -457,7 +457,7 @@ ${vocabList ? `\n当前课词汇表：${vocabList}` : ''}
                 'Authorization': `Bearer ${apiKey}`
             },
             body: JSON.stringify({
-                model: 'deepseek-chat',
+                model: 'mimo-v2.5',
                 messages: [
                     { role: 'system', content: '你是专业的西班牙语教师，擅长把复杂的语法讲得简单易懂。' },
                     { role: 'user', content: prompt }
@@ -520,7 +520,7 @@ export async function generateSmartContent(lesson) {
                 'Authorization': `Bearer ${apiKey}`
             },
             body: JSON.stringify({
-                model: "deepseek-chat",
+                model: "mimo-v2.5",
                 messages: [
                     { role: "system", content: "你是一位经验丰富的西班牙语老师，擅长深入浅出地讲解词汇和语法。请只返回JSON数据。" },
                     { role: "user", content: prompt }

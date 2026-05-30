@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Mic, Volume2, RefreshCw, Loader2, ChevronLeft, ChevronRight, CheckCircle2, XCircle, AlertCircle, History, Trash2, Settings } from 'lucide-react';
-import { generateTranslationQuestions } from '../utils/deepseekAPI';
+import { generateTranslationQuestions } from '../utils/mimoAPI';
 
 // ==================== 评分算法 ====================
 
@@ -217,7 +217,7 @@ export default function SpeakingPractice({ vocab, lessonId, reading, translation
             setIsListening(true); isListeningRef.current = true;
             timeoutRef.current = setTimeout(() => {
                 if (isListeningRef.current && recognitionRef.current) try { recognitionRef.current.stop(); } catch {}
-            }, 15000);
+            }, 10000);
         } catch (e) {
             console.error('Start failed:', e);
             setIsListening(false); isListeningRef.current = false;

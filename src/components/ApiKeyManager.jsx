@@ -2,19 +2,19 @@ import { useState, useEffect } from 'react';
 import { Key, Save, Eye, EyeOff } from 'lucide-react';
 
 export default function ApiKeyManager({ onKeySet }) {
-    const [deepseekKey, setDeepseekKey] = useState('');
+    const [mimoKey, setMiMoKey] = useState('');
     const [openaiKey, setOpenaiKey] = useState('');
-    const [showDeepseek, setShowDeepseek] = useState(false);
+    const [showMiMo, setShowMiMo] = useState(false);
     const [showOpenai, setShowOpenai] = useState(false);
-    const [deepseekSaved, setDeepseekSaved] = useState(false);
+    const [mimoSaved, setMiMoSaved] = useState(false);
     const [openaiSaved, setOpenaiSaved] = useState(false);
 
     useEffect(() => {
-        const dsKey = localStorage.getItem('deepseek_api_key');
+        const dsKey = localStorage.getItem('mimo_api_key');
         const oaiKey = localStorage.getItem('openai_api_key');
         if (dsKey) {
-            setDeepseekKey(dsKey);
-            setDeepseekSaved(true);
+            setMiMoKey(dsKey);
+            setMiMoSaved(true);
         }
         if (oaiKey) {
             setOpenaiKey(oaiKey);
@@ -23,13 +23,12 @@ export default function ApiKeyManager({ onKeySet }) {
         if (dsKey && onKeySet) onKeySet(dsKey);
     }, []);
 
-    const handleSaveDeepseek = () => {
-        if (!deepseekKey.trim()) { alert('请输入 DeepSeek API Key'); return; }
-        if (!deepseekKey.startsWith('sk-')) { alert('DeepSeek API Key 格式不正确，应以 "sk-" 开头'); return; }
-        localStorage.setItem('deepseek_api_key', deepseekKey);
-        if (onKeySet) onKeySet(deepseekKey);
-        setDeepseekSaved(true);
-        alert('DeepSeek API Key 已保存！');
+    const handleSaveMiMo = () => {
+        if (!mimoKey.trim()) { alert('请输入 MiMo API Key'); return; }
+        localStorage.setItem('mimo_api_key', mimoKey);
+        if (onKeySet) onKeySet(mimoKey);
+        setMiMoSaved(true);
+        alert('MiMo API Key 已保存！');
     };
 
     const handleSaveOpenai = () => {
@@ -41,11 +40,11 @@ export default function ApiKeyManager({ onKeySet }) {
     };
 
     const handleClear = (type) => {
-        if (type === 'deepseek') {
-            if (!confirm('确定要清除 DeepSeek API Key 吗？')) return;
-            localStorage.removeItem('deepseek_api_key');
-            setDeepseekKey('');
-            setDeepseekSaved(false);
+        if (type === 'mimo') {
+            if (!confirm('确定要清除 MiMo API Key 吗？')) return;
+            localStorage.removeItem('mimo_api_key');
+            setMiMoKey('');
+            setMiMoSaved(false);
             if (onKeySet) onKeySet(null);
         } else {
             if (!confirm('确定要清除 OpenAI API Key 吗？清除后将无法使用语音识别。')) return;
@@ -75,39 +74,39 @@ export default function ApiKeyManager({ onKeySet }) {
 
     return (
         <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-6 border-2 border-purple-200 space-y-6">
-            {/* DeepSeek API Key */}
+            {/* MiMo API Key */}
             <div>
                 <div className="flex items-center gap-2 mb-4">
                     <Key size={20} className="text-purple-600" />
-                    <h3 className="font-bold text-purple-900">DeepSeek API Key</h3>
+                    <h3 className="font-bold text-purple-900">MiMo API Key</h3>
                     <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">AI 生成内容</span>
                 </div>
                 <p className="text-sm text-slate-600 mb-3">
                     用于 AI 生成练习题、翻译、阅读理解等功能。获取地址：
-                    <a href="https://platform.deepseek.com" target="_blank" rel="noopener noreferrer" className="text-purple-600 hover:underline ml-1">platform.deepseek.com</a>
+                    <a href="https://api.xiaomimimo.com" target="_blank" rel="noopener noreferrer" className="text-purple-600 hover:underline ml-1">api.xiaomimimo.com</a>
                 </p>
                 <div className="space-y-3">
                     <InputField
-                        value={deepseekKey}
-                        onChange={setDeepseekKey}
-                        show={showDeepseek}
-                        setShow={setShowDeepseek}
-                        saved={deepseekSaved}
-                        placeholder="sk-xxxxxxxxxxxxxxxx"
+                        value={mimoKey}
+                        onChange={setMiMoKey}
+                        show={showMiMo}
+                        setShow={setShowMiMo}
+                        saved={mimoSaved}
+                        placeholder="输入 MiMo API Key"
                     />
                     <div className="flex gap-2">
-                        <button onClick={handleSaveDeepseek} className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all font-medium">
+                        <button onClick={handleSaveMiMo} className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all font-medium">
                             <Save size={18} /> 保存
                         </button>
-                        {deepseekSaved && (
-                            <button onClick={() => handleClear('deepseek')} className="px-4 py-3 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300 transition-all">
+                        {mimoSaved && (
+                            <button onClick={() => handleClear('mimo')} className="px-4 py-3 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300 transition-all">
                                 清除
                             </button>
                         )}
                     </div>
-                    {deepseekSaved && (
+                    {mimoSaved && (
                         <p className="text-sm text-green-700 bg-green-50 p-2 rounded flex items-center gap-2">
-                            <span className="text-green-600">&#10003;</span> DeepSeek API Key 已保存
+                            <span className="text-green-600">&#10003;</span> MiMo API Key 已保存
                         </p>
                     )}
                 </div>
