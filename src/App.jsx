@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { BookOpen, GraduationCap, ArrowLeft, CheckCircle2, Brain, Languages, BookText, ListChecks, Settings, X, Mic } from 'lucide-react';
 import { courseData } from './data/course_data';
 import VocabDrill from './components/VocabDrill';
@@ -267,8 +268,8 @@ function App() {
       <StudyNotes apiKey={apiKey} />
 
       {/* Initial API Key Setup Modal */}
-      {showSettingsModal && (
-        <div className="modal-backdrop fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      {showSettingsModal && createPortal(
+        <div className="modal-backdrop fixed inset-0 bg-black/50 flex items-center justify-center p-4" style={{ zIndex: 99999 }}>
           <div className="modal-content bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col">
             <div className="bg-gradient-to-r from-purple-600 to-pink-600 p-6 text-white relative flex-shrink-0 rounded-t-2xl">
               <button
@@ -305,7 +306,8 @@ function App() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
