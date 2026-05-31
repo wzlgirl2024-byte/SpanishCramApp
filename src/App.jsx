@@ -1,5 +1,4 @@
 import { useState, useEffect, useMemo } from 'react';
-import { createPortal } from 'react-dom';
 import { BookOpen, GraduationCap, ArrowLeft, CheckCircle2, Brain, Languages, BookText, ListChecks, Settings, X, Mic } from 'lucide-react';
 import { courseData } from './data/course_data';
 import VocabDrill from './components/VocabDrill';
@@ -267,47 +266,32 @@ function App() {
       {/* Study Notes Sidebar (Right) */}
       <StudyNotes apiKey={apiKey} />
 
-      {/* Initial API Key Setup Modal */}
-      {showSettingsModal && createPortal(
-        <div className="modal-backdrop fixed inset-0 bg-black/50 flex items-center justify-center p-4" style={{ zIndex: 99999 }}>
-          <div className="modal-content bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col">
-            <div className="bg-gradient-to-r from-purple-600 to-pink-600 p-6 text-white relative flex-shrink-0 rounded-t-2xl">
+      {/* Settings Modal */}
+      {showSettingsModal && (
+        <div className="modal-backdrop fixed inset-0 bg-black/50 flex items-center justify-center p-4" style={{ zIndex: 99999 }} onClick={(e) => { if (e.target === e.currentTarget) setShowSettingsModal(false); }}>
+          <div className="modal-content bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between p-5 border-b border-slate-200 flex-shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 bg-slate-100 rounded-lg flex items-center justify-center">
+                  <Settings size={20} className="text-slate-600" />
+                </div>
+                <h2 className="text-lg font-bold text-slate-800">设置</h2>
+              </div>
               <button
                 onClick={() => setShowSettingsModal(false)}
-                className="absolute top-4 right-4 p-2 hover:bg-white/20 rounded-lg transition-all"
+                className="p-2 hover:bg-slate-100 rounded-lg transition-all text-slate-500"
               >
                 <X size={20} />
               </button>
-              <h2 className="text-2xl font-bold mb-2">欢迎使用 Spanish Cram Suite！🇪🇸</h2>
-              <p className="text-purple-100">开始使用AI功能前，请先设置您的API Key</p>
             </div>
             <div className="p-6 overflow-y-auto flex-1">
               <ApiKeyManager onKeySet={(key) => {
                 setHasApiKey(!!key);
                 setApiKey(key || '');
-                if (key) setShowSettingsModal(false);
               }} />
-
-              <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <h3 className="font-bold text-blue-900 mb-2">💡 温馨提示</h3>
-                <ul className="text-sm text-blue-800 space-y-1">
-                  <li>• 您的API Key仅保存在本地浏览器中</li>
-                  <li>• 每位同学使用自己的MiMo账户额度</li>
-                  <li>• 可随时在右上角⚙️图标中修改或清除</li>
-                  <li>• 不设置也可以使用，但无法使用AI功能</li>
-                </ul>
-              </div>
-
-              <button
-                onClick={() => setShowSettingsModal(false)}
-                className="mt-4 w-full py-3 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300 transition-all font-medium"
-              >
-                稍后设置
-              </button>
             </div>
           </div>
-        </div>,
-        document.body
+        </div>
       )}
     </div>
   );
