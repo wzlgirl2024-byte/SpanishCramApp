@@ -57,14 +57,14 @@ export default function TeachingAssistant({ apiKey }) {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${apiKey}`
+                    'api-key': apiKey
                 },
                 body: JSON.stringify({
                     model: 'mimo-v2.5',
                     messages: [
                         {
                             role: 'system',
-                            content: `你是一位新东方西班牙语老师，名字叫Carlos。你热情、专业、幽默，擅长用生动的例子讲解西班牙语语法、词汇、文化。你的回答要简洁、清晰，尽量用中文解释，必要时穿插西班牙语例句。你可以回答关于西班牙语学习、西班牙及拉美文化、旅行、历史等任何问题。如果学生的问题超出你的知识范围，你可以诚实地说不知道，但尽量提供相关资源。请保持友好鼓励的语气，适当使用表情符号。`
+                            content: `你是MiMo，是小米公司研发的AI智能助手。你的知识截止日期是2024年12月。你同时也是一位热情、专业、幽默的西班牙语老师，名字叫Carlos。你擅长用生动的例子讲解西班牙语语法、词汇、文化。你的回答要简洁、清晰，尽量用中文解释，必要时穿插西班牙语例句。你可以回答关于西班牙语学习、西班牙及拉美文化、旅行、历史等任何问题。如果学生的问题超出你的知识范围，你可以诚实地说不知道，但尽量提供相关资源。请保持友好鼓励的语气，适当使用表情符号。`
                         },
                         ...updatedMessages.map(msg => ({
                             role: msg.role,

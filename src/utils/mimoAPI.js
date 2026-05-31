@@ -134,7 +134,9 @@ ${prevKnowledgeText}
         }
 
         const data = await response.json();
-        const content = data.choices[0].message.content;
+        let content = data.choices[0].message.content;
+        // 清理 markdown 代码块标记
+        content = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
 
         const jsonMatch = content.match(/\[[\s\S]*\]/);
         if (!jsonMatch) {
@@ -191,17 +193,15 @@ export async function gradeTranslationWithAI(userAnswer, correctAnswer, original
 
 请根据以下宽松标准给出0-100的分数：
 - 100分：意思完全一致，语法正确。
-- 80-95分：意思正确，能清晰传达信息，即使有语法错误（如词序、冠词、拼写）或表达不够地道，但沟通无障碍。这是最常见的得分区间，鼓励学生。
+- 80-95分：意思正确，能清晰传达信息，即使有语法错误（如词序、冠词、拼写）或表达不够地道，但沟通无障碍。
 - 60-79分：意思基本正确，但有明显语法错误或词汇使用不当，仍能理解。
 - 40-59分：意思部分正确，但存在误解或严重语法错误。
 - 0-39分：意思错误或无关。
 
-特别提醒：我们不是培养翻译官，而是帮助学习者与西语母语者沟通。只要学生答案能表达出正确答案的核心意思，即使句式不同、用词不同，也应给予80分以上。语法错误不影响理解时，不要扣分过多。
-
 请以JSON格式返回：
 {
 "score": 分数(0-100),
-"feedback": "简短评价（中文，鼓励为主，指出优点或轻微改进点）"
+"feedback": "简短评价（中文）"
 }
 
 只返回JSON，不要其他文字。`;
@@ -217,7 +217,7 @@ export async function gradeTranslationWithAI(userAnswer, correctAnswer, original
                 messages: [
                     {
                         role: 'system',
-                        content: '你是MiMo，是小米公司研发的AI智能助手。你的知识截止日期是2024年12月。你是一位鼓励型西班牙语教师，注重沟通效果。评分时请宽松，只要意思正确就给予高分，语法错误不影响理解时不扣分。'
+                        content: '你是MiMo，是小米公司研发的AI智能助手。你是一位鼓励型西班牙语教师。'
                     },
                     {
                         role: 'user',
@@ -234,24 +234,24 @@ export async function gradeTranslationWithAI(userAnswer, correctAnswer, original
         }
 
         const data = await response.json();
-        const content = data.choices[0].message.content;
+        let content = data.choices[0].message.content;
+        // 清理 markdown 代码块标记
+        content = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
 
-        const jsonMatch = content.match(/\{[\s\S]*\}/);
+        const jsonMatch = content.match(/\[[\s\S]*\]/) || content.match(/\{[\s\S]*\}/);
         if (!jsonMatch) {
             throw new Error('无法解析AI返回的评分');
         }
 
         const result = JSON.parse(jsonMatch[0]);
-        return {
-            score: Math.min(100, Math.max(0, result.score)),
-            feedback: result.feedback || '评分完成'
-        };
+        // 确保返回的是对象，如果 AI 抽风返回了数组，取第一个
+        return Array.isArray(result) ? result[0] : result;
 
     } catch (error) {
         console.error('AI评分失败:', error);
         throw error;
     }
-}
+} // <--- 重点：这个 } 必须存在，用来结束整个函数
 
 /**
  * 生成语法选择题
@@ -320,7 +320,9 @@ ${prevKnowledgeText}
         }
 
         const data = await response.json();
-        const content = data.choices[0].message.content;
+        let content = data.choices[0].message.content;
+        // 清理 markdown 代码块标记
+        content = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
         const jsonMatch = content.match(/\[[\s\S]*\]/);
 
         if (!jsonMatch) {
@@ -407,7 +409,9 @@ ${prevKnowledgeText}
         }
 
         const data = await response.json();
-        const content = data.choices[0].message.content;
+        let content = data.choices[0].message.content;
+        // 清理 markdown 代码块标记
+        content = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
         const jsonMatch = content.match(/\{[\s\S]*\}/);
 
         if (!jsonMatch) {
