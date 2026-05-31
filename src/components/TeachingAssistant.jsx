@@ -57,7 +57,7 @@ export default function TeachingAssistant({ apiKey }) {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'api-key': apiKey
+                    'Authorization': `Bearer ${apiKey}`
                 },
                 body: JSON.stringify({
                     model: 'mimo-v2.5',

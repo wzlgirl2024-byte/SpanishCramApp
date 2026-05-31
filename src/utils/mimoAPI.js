@@ -107,7 +107,7 @@ ${prevKnowledgeText}
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'api-key': apiKey
+                'Authorization': `Bearer ${apiKey}`
             },
             body: JSON.stringify({
                 model: 'mimo-v2.5',
@@ -134,13 +134,17 @@ ${prevKnowledgeText}
         }
 
         const data = await response.json();
-        let content = data.choices[0].message.content;
+        let content = data.choices[0]?.message?.content || '';
+        if (!content.trim()) {
+            console.error('API返回空内容，完整响应:', JSON.stringify(data));
+            throw new Error('API返回了空内容，请检查API Key是否正确');
+        }
         // 清理 markdown 代码块标记
         content = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
 
         const jsonMatch = content.match(/\[[\s\S]*\]/);
         if (!jsonMatch) {
-            throw new Error('无法解析AI返回的JSON格式');
+            throw new Error('无法解析AI返回的JSON格式，收到: ' + content.substring(0, 200));
         }
 
         const questions = JSON.parse(jsonMatch[0]);
@@ -162,7 +166,7 @@ export async function testMiMoAPI() {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'api-key': apiKey
+                'Authorization': `Bearer ${apiKey}`
             },
             body: JSON.stringify({
                 model: 'mimo-v2.5',
@@ -210,7 +214,7 @@ export async function gradeTranslationWithAI(userAnswer, correctAnswer, original
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'api-key': apiKey
+                'Authorization': `Bearer ${apiKey}`
             },
             body: JSON.stringify({
                 model: 'mimo-v2.5',
@@ -299,7 +303,7 @@ ${prevKnowledgeText}
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'api-key': apiKey
+                'Authorization': `Bearer ${apiKey}`
             },
             body: JSON.stringify({
                 model: 'mimo-v2.5',
@@ -320,8 +324,8 @@ ${prevKnowledgeText}
         }
 
         const data = await response.json();
-        console.log('语法题API原始返回:', data);
-        let content = data.choices[0].message.content;
+        console.log('语法题API原始返回:', JSON.stringify(data, null, 2));
+        let content = data.choices[0].message?.content || data.choices[0].text || '';
         console.log('语法题API内容:', content);
         // 清理 markdown 代码块标记
         content = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
@@ -410,7 +414,7 @@ ${prevKnowledgeText}
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'api-key': apiKey
+                'Authorization': `Bearer ${apiKey}`
             },
             body: JSON.stringify({
                 model: 'mimo-v2.5',
@@ -431,13 +435,17 @@ ${prevKnowledgeText}
         }
 
         const data = await response.json();
-        let content = data.choices[0].message.content;
+        let content = data.choices[0]?.message?.content || '';
+        if (!content.trim()) {
+            console.error('阅读理解API返回空内容，完整响应:', JSON.stringify(data));
+            throw new Error('API返回了空内容，请检查API Key是否正确');
+        }
         // 清理 markdown 代码块标记
         content = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
         const jsonMatch = content.match(/\{[\s\S]*\}/);
 
         if (!jsonMatch) {
-            throw new Error('无法解析AI返回的JSON');
+            throw new Error('无法解析AI返回的JSON，收到: ' + content.substring(0, 200));
         }
 
         return JSON.parse(jsonMatch[0]);
@@ -480,7 +488,7 @@ ${vocabList ? `\n当前课词汇表：${vocabList}` : ''}
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'api-key': apiKey
+                'Authorization': `Bearer ${apiKey}`
             },
             body: JSON.stringify({
                 model: 'mimo-v2.5',
@@ -498,7 +506,12 @@ ${vocabList ? `\n当前课词汇表：${vocabList}` : ''}
         }
 
         const data = await response.json();
-        return data.choices[0].message.content;
+        const content = data.choices[0]?.message?.content || '';
+        if (!content.trim()) {
+            console.error('语法讲解API返回空内容，完整响应:', JSON.stringify(data));
+            throw new Error('API返回了空内容，请检查API Key是否正确');
+        }
+        return content;
 
     } catch (error) {
         console.error('生成语法讲解失败:', error);
@@ -543,7 +556,7 @@ export async function generateSmartContent(lesson) {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'api-key': apiKey
+                'Authorization': `Bearer ${apiKey}`
             },
             body: JSON.stringify({
                 model: "mimo-v2.5",
@@ -563,7 +576,11 @@ export async function generateSmartContent(lesson) {
         }
 
         const data = await response.json();
-        let content = data.choices[0].message.content;
+        let content = data.choices[0]?.message?.content || '';
+        if (!content.trim()) {
+            console.error('智能备课API返回空内容，完整响应:', JSON.stringify(data));
+            throw new Error('API返回了空内容，请检查API Key是否正确');
+        }
 
         // Clean up markdown code blocks if present
         content = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
