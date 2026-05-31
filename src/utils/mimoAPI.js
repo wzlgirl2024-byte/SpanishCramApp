@@ -320,16 +320,38 @@ ${prevKnowledgeText}
         }
 
         const data = await response.json();
+        console.log('语法题API原始返回:', data);
         let content = data.choices[0].message.content;
+        console.log('语法题API内容:', content);
         // 清理 markdown 代码块标记
         content = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-        const jsonMatch = content.match(/\[[\s\S]*\]/);
 
-        if (!jsonMatch) {
-            throw new Error('无法解析AI返回的JSON');
+        // 尝试多种方式解析JSON
+        let result = null;
+
+        // 方式1: 直接解析
+        try { result = JSON.parse(content); } catch {}
+
+        // 方式2: 匹配JSON数组
+        if (!result) {
+            const arrMatch = content.match(/\[[\s\S]*\]/);
+            if (arrMatch) { try { result = JSON.parse(arrMatch[0]); } catch {} }
         }
 
-        return JSON.parse(jsonMatch[0]);
+        // 方式3: 匹配JSON对象（可能AI返回了包装对象）
+        if (!result) {
+            const objMatch = content.match(/\{[\s\S]*\}/);
+            if (objMatch) { try { result = JSON.parse(objMatch[0]); } catch {} }
+        }
+
+        if (result && Array.isArray(result)) {
+            return result;
+        }
+        if (result && result.questions && Array.isArray(result.questions)) {
+            return result.questions;
+        }
+
+        throw new Error('无法解析AI返回的JSON，收到: ' + content.substring(0, 200));
     } catch (error) {
         console.error('生成语法题失败:', error);
         throw error;
