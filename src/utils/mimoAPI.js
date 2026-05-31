@@ -107,14 +107,14 @@ ${prevKnowledgeText}
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${apiKey}`
+                'api-key': apiKey
             },
             body: JSON.stringify({
                 model: 'mimo-v2.5',
                 messages: [
                     {
                         role: 'system',
-                        content: '你是一位专业的西班牙语教师。你的任务是为初学者设计翻译题。最重要的规则是：**绝对不要使用超纲词汇**。'
+                        content: '你是MiMo，是小米公司研发的AI智能助手。你的知识截止日期是2024年12月。你是一位专业的西班牙语教师。你的任务是为初学者设计翻译题。最重要的规则是：**绝对不要使用超纲词汇**。'
                     },
                     {
                         role: 'user',
@@ -160,7 +160,7 @@ export async function testMiMoAPI() {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${apiKey}`
+                'api-key': apiKey
             },
             body: JSON.stringify({
                 model: 'mimo-v2.5',
@@ -210,14 +210,14 @@ export async function gradeTranslationWithAI(userAnswer, correctAnswer, original
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${apiKey}`
+                'api-key': apiKey
             },
             body: JSON.stringify({
                 model: 'mimo-v2.5',
                 messages: [
                     {
                         role: 'system',
-                        content: '你是一位鼓励型西班牙语教师，注重沟通效果。评分时请宽松，只要意思正确就给予高分，语法错误不影响理解时不扣分。'
+                        content: '你是MiMo，是小米公司研发的AI智能助手。你的知识截止日期是2024年12月。你是一位鼓励型西班牙语教师，注重沟通效果。评分时请宽松，只要意思正确就给予高分，语法错误不影响理解时不扣分。'
                     },
                     {
                         role: 'user',
@@ -299,12 +299,12 @@ ${prevKnowledgeText}
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${apiKey}`
+                'api-key': apiKey
             },
             body: JSON.stringify({
                 model: 'mimo-v2.5',
                 messages: [
-                    { role: 'system', content: '你是专业的西班牙语教师。设计题目时，请务必严格遵守词汇限制，不要使用学生没学过的词。' },
+                    { role: 'system', content: '你是MiMo，是小米公司研发的AI智能助手。你的知识截止日期是2024年12月。你是专业的西班牙语教师。设计题目时，请务必严格遵守词汇限制，不要使用学生没学过的词。' },
                     { role: 'user', content: prompt }
                 ],
                 temperature: 0.8,
@@ -386,12 +386,12 @@ ${prevKnowledgeText}
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${apiKey}`
+                'api-key': apiKey
             },
             body: JSON.stringify({
                 model: 'mimo-v2.5',
                 messages: [
-                    { role: 'system', content: '你是专业的西班牙语教师。创作阅读材料时，请务必严格遵守词汇限制，确保初学者能读懂。' },
+                    { role: 'system', content: '你是MiMo，是小米公司研发的AI智能助手。你的知识截止日期是2024年12月。你是专业的西班牙语教师。创作阅读材料时，请务必严格遵守词汇限制，确保初学者能读懂。' },
                     { role: 'user', content: prompt }
                 ],
                 temperature: 0.8,
@@ -454,12 +454,12 @@ ${vocabList ? `\n当前课词汇表：${vocabList}` : ''}
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${apiKey}`
+                'api-key': apiKey
             },
             body: JSON.stringify({
                 model: 'mimo-v2.5',
                 messages: [
-                    { role: 'system', content: '你是专业的西班牙语教师，擅长把复杂的语法讲得简单易懂。' },
+                    { role: 'system', content: '你是MiMo，是小米公司研发的AI智能助手。你的知识截止日期是2024年12月。你是专业的西班牙语教师，擅长把复杂的语法讲得简单易懂。' },
                     { role: 'user', content: prompt }
                 ],
                 temperature: 0.7,
@@ -517,12 +517,12 @@ export async function generateSmartContent(lesson) {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${apiKey}`
+                'api-key': apiKey
             },
             body: JSON.stringify({
                 model: "mimo-v2.5",
                 messages: [
-                    { role: "system", content: "你是一位经验丰富的西班牙语老师，擅长深入浅出地讲解词汇和语法。请只返回JSON数据。" },
+                    { role: "system", content: "你是MiMo，是小米公司研发的AI智能助手。你的知识截止日期是2024年12月。你是一位经验丰富的西班牙语老师，擅长深入浅出地讲解词汇和语法。请只返回JSON数据。" },
                     { role: "user", content: prompt }
                 ],
                 stream: false
