@@ -7,7 +7,7 @@ import { generateListeningExercise } from '../utils/mimoAPI';
  * 使用浏览器TTS朗读对话，区分男女性别声音，模拟DELE A1/A2考试语速
  * 配套一道四选一听力理解选择题
  */
-export default function ListeningPractice({ vocab, grammarTitle, lessonId, previousKnowledge }) {
+export default function ListeningPractice({ vocab, grammarTitle, lessonTitle, lessonId, previousKnowledge }) {
     const [exercise, setExercise] = useState(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
@@ -171,7 +171,7 @@ export default function ListeningPractice({ vocab, grammarTitle, lessonId, previ
 
         try {
             const grammarTopic = grammarTitle ? { title: grammarTitle, content: '' } : null;
-            const result = await generateListeningExercise(vocab, grammarTopic, previousKnowledge);
+            const result = await generateListeningExercise(vocab, grammarTopic, previousKnowledge, lessonTitle);
             setExercise(result);
         } catch (err) {
             setError(err.message || '生成听力练习失败，请重试');

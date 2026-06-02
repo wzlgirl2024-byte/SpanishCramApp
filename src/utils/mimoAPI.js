@@ -546,44 +546,45 @@ export async function generateSmartContent(lesson) {
  * @param {Array} vocab - 当前课词汇列表
  * @param {Object} grammarTopic - {title, content}
  * @param {Object} previousKnowledge - { vocab: [], grammar: [] }
+ * @param {string} lessonTitle - 课文标题（如 "¿QUIÉN ERES?"）
  */
-export async function generateListeningExercise(vocab, grammarTopic, previousKnowledge = null) {
+export async function generateListeningExercise(vocab, grammarTopic, previousKnowledge = null, lessonTitle = '') {
     const vocabList = vocab.map(v => `${v.spanish} = ${v.chinese}`).join(', ');
     const theme = getRandomTheme();
     const randomNames = getRandomNames(4);
     const prevKnowledgeText = formatPreviousKnowledge(previousKnowledge);
 
-    const grammarInfo = grammarTopic ? `当前语法点：${grammarTopic.title}\n语法内容：${grammarTopic.content}` : '';
+    const grammarInfo = grammarTopic ? `当前语法点：${grammarTopic.title}` : '';
+    const lessonInfo = lessonTitle ? `课文标题：${lessonTitle}` : '';
 
-    const prompt = `你是一位西班牙语教师，正在为DELE A1/A2级别考试备考的学生设计听力练习材料。
+    const prompt = `你是一位西班牙语教师，正在为使用《速成西班牙语》(Español Sin Fronteras)教材的学生设计听力练习。
 
-请根据以下课程内容，生成一段简短的西班牙语对话（听力材料），并配套一道听力理解选择题。
+请根据以下课文内容，生成一段贴近课文风格的西班牙语对话，并配套一道听力理解选择题。
 
-当前课词汇表（重点使用）：${vocabList}
+${lessonInfo}
+当前课词汇表：${vocabList}
 ${grammarInfo}
 ${prevKnowledgeText}
 场景主题：${theme}
 可用人名：${randomNames}
 
-**学生当前水平**：A1-A2初级水平，已学词汇和语法如上所列。
+**词汇使用规则（关键）**：
+1. **核心信息必须使用已学词汇**：对话中传达的关键信息（人物身份、动作、地点、时间、数量、情感等）必须使用当前课词汇表和已学词汇。
+2. **允许少量超纲词**：为了使对话自然流畅，可以使用2-3个简单的超纲词（如日常连接词 hola, bueno, pues, vale 等），但这些超纲词不能承载关键信息。
+3. **题目和选项严格限词**：听力理解题的问题和四个选项必须100%使用已学词汇，不得出现任何超纲词。
+4. **课文风格**：对话应模仿课文的情景对话风格——简短、实用、围绕一个明确场景展开。
 
-要求：
-1. **对话长度**：4-6个轮次（turn），总词数控制在50-80词。适合A1-A2水平。
-2. **说话者设定**：
-   - 两个说话者，一男一女。
-   - 男性说话者使用阳性词汇自述（如：soy estudiante, soy médico, estoy contento）。
-   - 女性说话者使用阴性词汇自述（如：soy estudiante, soy médica, estoy contenta）。
-   - 这是考察重点！确保形容词、名词的阴阳性与说话者性别一致。
-3. **词汇限制**：主要使用当前课词汇，可适当结合已学词汇。绝对不要使用超纲词。
-4. **语法复杂度**：使用已学语法点（现在时、简单句等）。避免未学过的时态和虚拟式。
-5. **自然真实**：对话要自然、贴近日常生活，符合指定场景主题。
-6. **语速提示**：对话应适合用稍慢的语速朗读（模拟DELE A1/A2考试听力速度）。
+**说话者设定**：
+- 两个说话者，一男一女。
+- 男性使用阳性形式（soy estudiante, estoy contento, soy médico）。
+- 女性使用阴性形式（soy estudiante, estoy contenta, soy médica）。
+- 确保形容词、名词的阴阳性与说话者性别一致。
 
-配套选择题要求：
-1. 一道四选一选择题，考查对对话内容的理解。
-2. 题目用西班牙语，选项用西班牙语。
-3. 难度适中，直接基于对话内容，不需要推理。
-4. 提供中文解析。
+**其他要求**：
+1. 对话4-6个轮次，总词数50-80词。
+2. 语法使用已学语法点（现在时、简单句等），避免未学过的时态。
+3. 对话自然真实，贴近日常生活。
+4. 适合用稍慢语速朗读（DELE A1/A2考试语速）。
 
 请以JSON格式输出：
 {
@@ -597,7 +598,7 @@ ${prevKnowledgeText}
     { "speaker": 1, "text": "说话内容（西班牙语）" }
   ],
   "question": {
-    "question": "听力理解问题（西班牙语）",
+    "question": "听力理解问题（西班牙语，必须使用已学词汇）",
     "options": ["选项A", "选项B", "选项C", "选项D"],
     "answer": 正确选项索引(0-3),
     "explanation": "解析（中文）"
@@ -609,7 +610,7 @@ ${prevKnowledgeText}
     const content = await callMiMoAPI([
         {
             role: 'system',
-            content: '你是MiMo，是小米公司研发的AI智能助手。你的知识截止日期是2024年12月。你是专业的西班牙语教师，擅长设计DELE考试备考材料。请严格遵守词汇限制，只返回JSON数据。'
+            content: '你是MiMo，是小米公司研发的AI智能助手。你的知识截止日期是2024年12月。你是专业的西班牙语教师，擅长设计DELE考试备考材料。对话核心信息和题目选项必须使用学生已学过的词汇，可以少量使用简单超纲词使对话自然。只返回JSON数据。'
         },
         { role: 'user', content: prompt }
     ], { label: '听力练习生成' });

@@ -257,6 +257,7 @@ function App() {
                   key={activeLesson.id}
                   vocab={activeLesson.vocab}
                   grammarTitle={activeLesson.grammar?.title || ''}
+                  lessonTitle={activeLesson.title}
                   lessonId={activeLesson.id}
                   previousKnowledge={previousKnowledge}
                 />
