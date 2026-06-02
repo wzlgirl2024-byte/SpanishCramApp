@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { BookOpen, GraduationCap, ArrowLeft, CheckCircle2, Brain, Languages, BookText, ListChecks, Settings, X, Mic } from 'lucide-react';
+import { BookOpen, GraduationCap, ArrowLeft, CheckCircle2, Brain, Languages, BookText, ListChecks, Settings, X, Mic, Headphones } from 'lucide-react';
 import { courseData } from './data/course_data';
 import VocabDrill from './components/VocabDrill';
 import GrammarQuiz from './components/GrammarQuiz';
@@ -10,6 +10,7 @@ import ApiKeyManager from './components/ApiKeyManager';
 import StudyNotes from './components/StudyNotes';
 import TeachingAssistant from './components/TeachingAssistant';
 import SpeakingPractice from './components/SpeakingPractice';
+import ListeningPractice from './components/ListeningPractice';
 import { generateTranslationQuestions, generateGrammarQuiz, generateReadingComprehension, generateSmartContent } from './utils/mimoAPI';
 
 function App() {
@@ -206,6 +207,12 @@ function App() {
                 label="动词变位"
               />
               <TabButton
+                active={activeTab === 'listening'}
+                onClick={() => setActiveTab('listening')}
+                icon={<Headphones size={18} />}
+                label="听力练习"
+              />
+              <TabButton
                 active={activeTab === 'speaking'}
                 onClick={() => setActiveTab('speaking')}
                 icon={<Mic size={18} />}
@@ -242,6 +249,15 @@ function App() {
                   verbs={activeLesson.verbs || []}
                   lessonId={activeLesson.id}
                   smartVerbs={smartContent?.irregularVerbs || []}
+                  previousKnowledge={previousKnowledge}
+                />
+              </div>
+              <div style={{ display: activeTab === 'listening' ? 'block' : 'none', height: '100%' }}>
+                <ListeningPractice
+                  key={activeLesson.id}
+                  vocab={activeLesson.vocab}
+                  grammarTitle={activeLesson.grammar?.title || ''}
+                  lessonId={activeLesson.id}
                   previousKnowledge={previousKnowledge}
                 />
               </div>

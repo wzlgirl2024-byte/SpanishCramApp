@@ -44,7 +44,6 @@ function formatPreviousKnowledge(previousKnowledge) {
 
     let text = '';
     if (previousKnowledge.vocab && previousKnowledge.vocab.length > 0) {
-        // 随机抽取一些旧词汇，避免Prompt过长
         const shuffled = [...previousKnowledge.vocab].sort(() => 0.5 - Math.random());
         const selected = shuffled.slice(0, 30).map(v => `${v.spanish}=${v.chinese}`).join(', ');
         text += `\n已学词汇（可适当使用）：${selected}`;
@@ -58,6 +57,193 @@ function formatPreviousKnowledge(previousKnowledge) {
     return text;
 }
 
+// ============================================================
+//  公共 API 调用层 - 统一处理请求、响应解析、空内容重试
+// ============================================================
+
+/**
+ * 从 API 响应 JSON 中提取文本内容
+ * 兼容多种可能的响应结构
+ */
+function extractContent(data) {
+    if (!data || !data.choices || !data.choices[0]) return '';
+
+    const choice = data.choices[0];
+
+    // 标准 OpenAI 格式: choices[0].message.content
+    if (choice.message?.content && choice.message.content.trim()) {
+        return choice.message.content;
+    }
+
+    // 某些模型用 reasoning_content 字段（思维链），content 可能为空
+    // 尝试从 reasoning_content 中提取（如果有的话，通常不是我们想要的，但记录下来方便调试）
+    if (choice.message?.reasoning_content) {
+        console.log('[MiMo API] 检测到 reasoning_content 字段');
+    }
+
+    // 某些兼容格式: choices[0].text
+    if (choice.text && choice.text.trim()) {
+        return choice.text;
+    }
+
+    // 遍历 message 的所有属性，找第一个非空字符串
+    if (choice.message) {
+        for (const [key, val] of Object.entries(choice.message)) {
+            if (typeof val === 'string' && val.trim() && key !== 'role') {
+                console.log(`[MiMo API] 从 message.${key} 中提取到内容`);
+                return val;
+            }
+        }
+    }
+
+    return '';
+}
+
+/**
+ * 统一调用 MiMo API（带自动重试）
+ * @param {Array} messages - chat messages
+ * @param {Object} options - { temperature, maxTokens, timeout, retries, systemPrompt }
+ * @returns {string} 提取到的文本内容
+ */
+async function callMiMoAPI(messages, options = {}) {
+    const {
+        temperature = 0.8,
+        maxTokens = 3000,
+        timeout = 60000,
+        retries = 2,       // 默认重试2次（共3次尝试）
+        label = 'API'      // 日志标签
+    } = options;
+
+    const apiKey = getApiKey();
+
+    for (let attempt = 0; attempt <= retries; attempt++) {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+        try {
+            if (attempt > 0) {
+                console.log(`[MiMo API] ${label} 第${attempt + 1}次尝试...`);
+            }
+
+            const response = await fetch(API_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${apiKey}`
+                },
+                body: JSON.stringify({
+                    model: 'mimo-v2.5',
+                    messages,
+                    temperature,
+                    max_tokens: maxTokens
+                }),
+                signal: controller.signal
+            });
+
+            clearTimeout(timeoutId);
+
+            if (!response.ok) {
+                throw new Error(`API请求失败: ${response.status}`);
+            }
+
+            const data = await response.json();
+            const content = extractContent(data);
+
+            if (content.trim()) {
+                if (attempt > 0) {
+                    console.log(`[MiMo API] ${label} 第${attempt + 1}次尝试成功`);
+                }
+                return content;
+            }
+
+            // 内容为空，记录日志
+            console.warn(`[MiMo API] ${label} 返回空内容 (attempt ${attempt + 1}/${retries + 1})，完整响应:`, JSON.stringify(data).substring(0, 500));
+
+            // 如果还有重试机会，等待一小段时间后重试
+            if (attempt < retries) {
+                await new Promise(r => setTimeout(r, 1000));
+                continue;
+            }
+
+            // 所有重试都失败
+            throw new Error('API多次返回空内容，请稍后重试或检查API Key');
+
+        } catch (error) {
+            clearTimeout(timeoutId);
+
+            if (error.name === 'AbortError') {
+                console.warn(`[MiMo API] ${label} 请求超时 (attempt ${attempt + 1}/${retries + 1})`);
+                if (attempt < retries) {
+                    await new Promise(r => setTimeout(r, 1000));
+                    continue;
+                }
+                throw new Error(`${label}请求超时，请稍后重试`);
+            }
+
+            // 非空内容错误（如网络错误、JSON解析错误），不重试
+            if (error.message.includes('API请求失败') || error.message.includes('空内容')) {
+                if (attempt < retries) {
+                    await new Promise(r => setTimeout(r, 1000));
+                    continue;
+                }
+            }
+
+            throw error;
+        }
+    }
+}
+
+/**
+ * 清理 markdown 代码块标记，提取纯 JSON 文本
+ */
+function cleanMarkdown(text) {
+    return text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+}
+
+/**
+ * 从文本中提取并解析 JSON 数组
+ */
+function parseJSONArray(text) {
+    const cleaned = cleanMarkdown(text);
+
+    // 方式1: 直接解析
+    try { const r = JSON.parse(cleaned); if (Array.isArray(r)) return r; } catch {}
+
+    // 方式2: 匹配 JSON 数组
+    const arrMatch = cleaned.match(/\[[\s\S]*\]/);
+    if (arrMatch) { try { const r = JSON.parse(arrMatch[0]); if (Array.isArray(r)) return r; } catch {} }
+
+    // 方式3: 匹配 JSON 对象（可能 AI 返回了包装对象）
+    const objMatch = cleaned.match(/\{[\s\S]*\}/);
+    if (objMatch) {
+        try {
+            const r = JSON.parse(objMatch[0]);
+            if (r.questions && Array.isArray(r.questions)) return r.questions;
+            if (Array.isArray(r)) return r;
+        } catch {}
+    }
+
+    return null;
+}
+
+/**
+ * 从文本中提取并解析 JSON 对象
+ */
+function parseJSONObject(text) {
+    const cleaned = cleanMarkdown(text);
+
+    try { return JSON.parse(cleaned); } catch {}
+
+    const objMatch = cleaned.match(/\{[\s\S]*\}/);
+    if (objMatch) { try { return JSON.parse(objMatch[0]); } catch {} }
+
+    return null;
+}
+
+// ============================================================
+//  业务函数
+// ============================================================
+
 /**
  * 调用MiMo API生成翻译题目
  * @param {Array} vocab - 当前课词汇列表
@@ -66,19 +252,16 @@ function formatPreviousKnowledge(previousKnowledge) {
  * @param {Object} previousKnowledge - { vocab: [], grammar: [] }
  */
 export async function generateTranslationQuestions(vocab, count = 10, direction = 'both', previousKnowledge = null) {
-    try {
-        const apiKey = getApiKey();
-        const vocabList = vocab.map(v => `${v.spanish} = ${v.chinese}`).join(', ');
-        const theme = getRandomTheme();
-        const randomNames = getRandomNames(4);
-        const prevKnowledgeText = formatPreviousKnowledge(previousKnowledge);
+    const vocabList = vocab.map(v => `${v.spanish} = ${v.chinese}`).join(', ');
+    const theme = getRandomTheme();
+    const randomNames = getRandomNames(4);
+    const prevKnowledgeText = formatPreviousKnowledge(previousKnowledge);
 
-        // 构建提示词
-        const directionText = direction === 'zh-es' ? '中文翻译成西班牙语' :
-            direction === 'es-zh' ? '西班牙语翻译成中文' :
-                '中译西和西译中各一半';
+    const directionText = direction === 'zh-es' ? '中文翻译成西班牙语' :
+        direction === 'es-zh' ? '西班牙语翻译成中文' :
+            '中译西和西译中各一半';
 
-        const prompt = `你是一位西班牙语教师。基于以下词汇表，生成${count}道翻译练习题（${directionText}）：
+    const prompt = `你是一位西班牙语教师。基于以下词汇表，生成${count}道翻译练习题（${directionText}）：
 
 当前课词汇表（重点考察）：${vocabList}
 ${prevKnowledgeText}
@@ -100,60 +283,19 @@ ${prevKnowledgeText}
 
 只返回JSON数组，不要其他文字。`;
 
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 60000); // 60秒超时
+    const content = await callMiMoAPI([
+        {
+            role: 'system',
+            content: '你是MiMo，是小米公司研发的AI智能助手。你的知识截止日期是2024年12月。你是一位专业的西班牙语教师。你的任务是为初学者设计翻译题。最重要的规则是：**绝对不要使用超纲词汇**。'
+        },
+        { role: 'user', content: prompt }
+    ], { label: '翻译题生成' });
 
-        const response = await fetch(API_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${apiKey}`
-            },
-            body: JSON.stringify({
-                model: 'mimo-v2.5',
-                messages: [
-                    {
-                        role: 'system',
-                        content: '你是MiMo，是小米公司研发的AI智能助手。你的知识截止日期是2024年12月。你是一位专业的西班牙语教师。你的任务是为初学者设计翻译题。最重要的规则是：**绝对不要使用超纲词汇**。'
-                    },
-                    {
-                        role: 'user',
-                        content: prompt
-                    }
-                ],
-                temperature: 0.8,
-                max_tokens: 3000
-            }),
-            signal: controller.signal
-        });
-
-        clearTimeout(timeoutId);
-
-        if (!response.ok) {
-            throw new Error(`API请求失败: ${response.status}`);
-        }
-
-        const data = await response.json();
-        let content = data.choices[0]?.message?.content || '';
-        if (!content.trim()) {
-            console.error('API返回空内容，完整响应:', JSON.stringify(data));
-            throw new Error('API返回了空内容，请检查API Key是否正确');
-        }
-        // 清理 markdown 代码块标记
-        content = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-
-        const jsonMatch = content.match(/\[[\s\S]*\]/);
-        if (!jsonMatch) {
-            throw new Error('无法解析AI返回的JSON格式，收到: ' + content.substring(0, 200));
-        }
-
-        const questions = JSON.parse(jsonMatch[0]);
-        return questions.filter(q => q.q && q.a && q.type);
-
-    } catch (error) {
-        console.error('MiMo API调用失败:', error);
-        throw error;
+    const questions = parseJSONArray(content);
+    if (!questions) {
+        throw new Error('无法解析AI返回的JSON格式，收到: ' + content.substring(0, 200));
     }
+    return questions.filter(q => q.q && q.a && q.type);
 }
 
 /**
@@ -184,11 +326,9 @@ export async function testMiMoAPI() {
  * 使用AI判断翻译的准确性和评分
  */
 export async function gradeTranslationWithAI(userAnswer, correctAnswer, originalQuestion, type) {
-    try {
-        const apiKey = getApiKey();
-        const direction = type === 'zh-es' ? '中文翻译成西班牙语' : '西班牙语翻译成中文';
+    const direction = type === 'zh-es' ? '中文翻译成西班牙语' : '西班牙语翻译成中文';
 
-        const prompt = `你是一位鼓励型西班牙语教师，注重沟通效果而非语法完美。请评判学生的翻译。
+    const prompt = `你是一位鼓励型西班牙语教师，注重沟通效果而非语法完美。请评判学生的翻译。
 
 题目：${originalQuestion}
 方向：${direction}
@@ -210,65 +350,31 @@ export async function gradeTranslationWithAI(userAnswer, correctAnswer, original
 
 只返回JSON，不要其他文字。`;
 
-        const response = await fetch(API_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${apiKey}`
-            },
-            body: JSON.stringify({
-                model: 'mimo-v2.5',
-                messages: [
-                    {
-                        role: 'system',
-                        content: '你是MiMo，是小米公司研发的AI智能助手。你是一位鼓励型西班牙语教师。'
-                    },
-                    {
-                        role: 'user',
-                        content: prompt
-                    }
-                ],
-                temperature: 0.3,
-                max_tokens: 200
-            })
-        });
+    const content = await callMiMoAPI([
+        {
+            role: 'system',
+            content: '你是MiMo，是小米公司研发的AI智能助手。你是一位鼓励型西班牙语教师。'
+        },
+        { role: 'user', content: prompt }
+    ], { temperature: 0.3, maxTokens: 200, timeout: 30000, retries: 1, label: 'AI评分' });
 
-        if (!response.ok) {
-            throw new Error(`API请求失败: ${response.status}`);
-        }
-
-        const data = await response.json();
-        let content = data.choices[0].message.content;
-        // 清理 markdown 代码块标记
-        content = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-
-        const jsonMatch = content.match(/\[[\s\S]*\]/) || content.match(/\{[\s\S]*\}/);
-        if (!jsonMatch) {
-            throw new Error('无法解析AI返回的评分');
-        }
-
-        const result = JSON.parse(jsonMatch[0]);
-        // 确保返回的是对象，如果 AI 抽风返回了数组，取第一个
-        return Array.isArray(result) ? result[0] : result;
-
-    } catch (error) {
-        console.error('AI评分失败:', error);
-        throw error;
+    const result = parseJSONObject(content);
+    if (!result) {
+        throw new Error('无法解析AI返回的评分');
     }
-} // <--- 重点：这个 } 必须存在，用来结束整个函数
+    return Array.isArray(result) ? result[0] : result;
+}
 
 /**
  * 生成语法选择题
  */
 export async function generateGrammarQuiz(grammarTopic, vocab, count = 10, previousKnowledge = null) {
-    try {
-        const apiKey = getApiKey();
-        const vocabList = vocab.map(v => `${v.spanish} = ${v.chinese}`).join(', ');
-        const theme = getRandomTheme();
-        const randomNames = getRandomNames(4);
-        const prevKnowledgeText = formatPreviousKnowledge(previousKnowledge);
+    const vocabList = vocab.map(v => `${v.spanish} = ${v.chinese}`).join(', ');
+    const theme = getRandomTheme();
+    const randomNames = getRandomNames(4);
+    const prevKnowledgeText = formatPreviousKnowledge(previousKnowledge);
 
-        const prompt = `你是西班牙语教师。基于以下语法知识点，生成${count}道选择题：
+    const prompt = `你是西班牙语教师。基于以下语法知识点，生成${count}道选择题：
 
 当前语法主题：${grammarTopic.title}
 当前语法内容：${grammarTopic.content}
@@ -296,84 +402,30 @@ ${prevKnowledgeText}
 
 只返回JSON数组，不要其他文字。`;
 
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 60000);
+    const content = await callMiMoAPI([
+        { role: 'system', content: '你是MiMo，是小米公司研发的AI智能助手。你的知识截止日期是2024年12月。你是专业的西班牙语教师。设计题目时，请务必严格遵守词汇限制，不要使用学生没学过的词。' },
+        { role: 'user', content: prompt }
+    ], { label: '语法题生成' });
 
-        const response = await fetch(API_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${apiKey}`
-            },
-            body: JSON.stringify({
-                model: 'mimo-v2.5',
-                messages: [
-                    { role: 'system', content: '你是MiMo，是小米公司研发的AI智能助手。你的知识截止日期是2024年12月。你是专业的西班牙语教师。设计题目时，请务必严格遵守词汇限制，不要使用学生没学过的词。' },
-                    { role: 'user', content: prompt }
-                ],
-                temperature: 0.8,
-                max_tokens: 3000
-            }),
-            signal: controller.signal
-        });
+    console.log('[语法题] 原始内容:', content);
 
-        clearTimeout(timeoutId);
-
-        if (!response.ok) {
-            throw new Error(`API请求失败: ${response.status}`);
-        }
-
-        const data = await response.json();
-        console.log('语法题API原始返回:', JSON.stringify(data, null, 2));
-        let content = data.choices[0].message?.content || data.choices[0].text || '';
-        console.log('语法题API内容:', content);
-        // 清理 markdown 代码块标记
-        content = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-
-        // 尝试多种方式解析JSON
-        let result = null;
-
-        // 方式1: 直接解析
-        try { result = JSON.parse(content); } catch {}
-
-        // 方式2: 匹配JSON数组
-        if (!result) {
-            const arrMatch = content.match(/\[[\s\S]*\]/);
-            if (arrMatch) { try { result = JSON.parse(arrMatch[0]); } catch {} }
-        }
-
-        // 方式3: 匹配JSON对象（可能AI返回了包装对象）
-        if (!result) {
-            const objMatch = content.match(/\{[\s\S]*\}/);
-            if (objMatch) { try { result = JSON.parse(objMatch[0]); } catch {} }
-        }
-
-        if (result && Array.isArray(result)) {
-            return result;
-        }
-        if (result && result.questions && Array.isArray(result.questions)) {
-            return result.questions;
-        }
-
+    const result = parseJSONArray(content);
+    if (!result) {
         throw new Error('无法解析AI返回的JSON，收到: ' + content.substring(0, 200));
-    } catch (error) {
-        console.error('生成语法题失败:', error);
-        throw error;
     }
+    return result;
 }
 
 /**
  * 生成阅读理解
  */
 export async function generateReadingComprehension(vocab, grammarTopic, previousKnowledge = null) {
-    try {
-        const apiKey = getApiKey();
-        const vocabList = vocab.map(v => `${v.spanish} = ${v.chinese}`).join(', ');
-        const theme = getRandomTheme();
-        const randomNames = getRandomNames(4);
-        const prevKnowledgeText = formatPreviousKnowledge(previousKnowledge);
+    const vocabList = vocab.map(v => `${v.spanish} = ${v.chinese}`).join(', ');
+    const theme = getRandomTheme();
+    const randomNames = getRandomNames(4);
+    const prevKnowledgeText = formatPreviousKnowledge(previousKnowledge);
 
-        const prompt = `你是西班牙语教师。创作一篇短文和3-4道理解题：
+    const prompt = `你是西班牙语教师。创作一篇短文和3-4道理解题：
 
 当前课词汇表：${vocabList}
 当前语法点：${grammarTopic}
@@ -407,52 +459,16 @@ ${prevKnowledgeText}
 
 只返回JSON，不要其他文字。`;
 
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 60000);
+    const content = await callMiMoAPI([
+        { role: 'system', content: '你是MiMo，是小米公司研发的AI智能助手。你的知识截止日期是2024年12月。你是专业的西班牙语教师。创作阅读材料时，请务必严格遵守词汇限制，确保初学者能读懂。' },
+        { role: 'user', content: prompt }
+    ], { label: '阅读理解生成' });
 
-        const response = await fetch(API_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${apiKey}`
-            },
-            body: JSON.stringify({
-                model: 'mimo-v2.5',
-                messages: [
-                    { role: 'system', content: '你是MiMo，是小米公司研发的AI智能助手。你的知识截止日期是2024年12月。你是专业的西班牙语教师。创作阅读材料时，请务必严格遵守词汇限制，确保初学者能读懂。' },
-                    { role: 'user', content: prompt }
-                ],
-                temperature: 0.8,
-                max_tokens: 3000
-            }),
-            signal: controller.signal
-        });
-
-        clearTimeout(timeoutId);
-
-        if (!response.ok) {
-            throw new Error(`API请求失败: ${response.status}`);
-        }
-
-        const data = await response.json();
-        let content = data.choices[0]?.message?.content || '';
-        if (!content.trim()) {
-            console.error('阅读理解API返回空内容，完整响应:', JSON.stringify(data));
-            throw new Error('API返回了空内容，请检查API Key是否正确');
-        }
-        // 清理 markdown 代码块标记
-        content = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-        const jsonMatch = content.match(/\{[\s\S]*\}/);
-
-        if (!jsonMatch) {
-            throw new Error('无法解析AI返回的JSON，收到: ' + content.substring(0, 200));
-        }
-
-        return JSON.parse(jsonMatch[0]);
-    } catch (error) {
-        console.error('生成阅读理解失败:', error);
-        throw error;
+    const result = parseJSONObject(content);
+    if (!result) {
+        throw new Error('无法解析AI返回的JSON，收到: ' + content.substring(0, 200));
     }
+    return result;
 }
 
 /**
@@ -462,12 +478,10 @@ ${prevKnowledgeText}
  * @param {Array} vocab - 当前课词汇列表
  */
 export async function generateGrammarExplanation(grammarTopic, previousKnowledge = null, vocab = []) {
-    try {
-        const apiKey = getApiKey();
-        const prevKnowledgeText = formatPreviousKnowledge(previousKnowledge);
-        const vocabList = vocab.length > 0 ? vocab.map(v => `${v.spanish} = ${v.chinese}`).join(', ') : '';
+    const prevKnowledgeText = formatPreviousKnowledge(previousKnowledge);
+    const vocabList = vocab.length > 0 ? vocab.map(v => `${v.spanish} = ${v.chinese}`).join(', ') : '';
 
-        const prompt = `你是西班牙语教师。请为学生深入讲解以下语法点：
+    const prompt = `你是西班牙语教师。请为学生深入讲解以下语法点：
 
 语法标题：${grammarTopic.title}
 简要内容：${grammarTopic.content}
@@ -484,114 +498,125 @@ ${vocabList ? `\n当前课词汇表：${vocabList}` : ''}
 
 请直接返回Markdown格式的讲解内容，不需要JSON。`;
 
-        const response = await fetch(API_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${apiKey}`
-            },
-            body: JSON.stringify({
-                model: 'mimo-v2.5',
-                messages: [
-                    { role: 'system', content: '你是MiMo，是小米公司研发的AI智能助手。你的知识截止日期是2024年12月。你是专业的西班牙语教师，擅长把复杂的语法讲得简单易懂。' },
-                    { role: 'user', content: prompt }
-                ],
-                temperature: 0.7,
-                max_tokens: 2000
-            })
-        });
-
-        if (!response.ok) {
-            throw new Error(`API请求失败: ${response.status}`);
-        }
-
-        const data = await response.json();
-        const content = data.choices[0]?.message?.content || '';
-        if (!content.trim()) {
-            console.error('语法讲解API返回空内容，完整响应:', JSON.stringify(data));
-            throw new Error('API返回了空内容，请检查API Key是否正确');
-        }
-        return content;
-
-    } catch (error) {
-        console.error('生成语法讲解失败:', error);
-        throw error;
-    }
+    return await callMiMoAPI([
+        { role: 'system', content: '你是MiMo，是小米公司研发的AI智能助手。你的知识截止日期是2024年12月。你是专业的西班牙语教师，擅长把复杂的语法讲得简单易懂。' },
+        { role: 'user', content: prompt }
+    ], { temperature: 0.7, maxTokens: 2000, label: '语法讲解' });
 }
 
 export async function generateSmartContent(lesson) {
-    const apiKey = getApiKey();
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 90000); // 90 seconds for deep analysis
+    const prompt = `
+    作为一位专业的西班牙语老师，请根据以下课程内容进行备课。
 
-    try {
-        const prompt = `
-        作为一位专业的西班牙语老师，请根据以下课程内容进行备课。
-        
-        课程标题: ${lesson.title}
-        课程副标题: ${lesson.subtitle}
-        词汇表: ${JSON.stringify(lesson.vocab.map(v => v.spanish + ' (' + v.chinese + ')').join(', '))}
-        
-        请生成一个JSON对象，包含以下三个部分：
-        1. "lexicalAnalysis": 数组，包含3-5个本课重点词汇或短语的深度讲解。每个对象包含：
-           - "title": 词汇/短语
-           - "content": 详细讲解（用法、搭配、例句、注意事项）。支持Markdown格式。
-           - "relatedVocab": 数组，相关的扩展词汇（例如如果是讲星期，列出所有星期单词）。
-        
-        2. "smartQuiz": 数组，包含5道基于上述词汇讲解的选择题。每个对象包含：
-           - "question": 问题
-           - "options": 选项数组
-           - "answer": 正确答案索引(0-3)
-           - "explanation": 解析
-        
-        3. "irregularVerbs": 数组，找出本课词汇表中出现的所有不规则动词（如果有）。每个对象包含：
-           - "infinitive": 原形
-           - "meaning": 中文意思
-           - "conjugation": 对象，包含yo, tú, él, nosotros, vosotros, ellos的变位。
-           
-        请确保输出是合法的JSON格式，不要包含Markdown代码块标记。
-        `;
+    课程标题: ${lesson.title}
+    课程副标题: ${lesson.subtitle}
+    词汇表: ${JSON.stringify(lesson.vocab.map(v => v.spanish + ' (' + v.chinese + ')').join(', '))}
 
-        const response = await fetch(API_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${apiKey}`
-            },
-            body: JSON.stringify({
-                model: "mimo-v2.5",
-                messages: [
-                    { role: "system", content: "你是MiMo，是小米公司研发的AI智能助手。你的知识截止日期是2024年12月。你是一位经验丰富的西班牙语老师，擅长深入浅出地讲解词汇和语法。请只返回JSON数据。" },
-                    { role: "user", content: prompt }
-                ],
-                stream: false
-            }),
-            signal: controller.signal
-        });
+    请生成一个JSON对象，包含以下三个部分：
+    1. "lexicalAnalysis": 数组，包含3-5个本课重点词汇或短语的深度讲解。每个对象包含：
+       - "title": 词汇/短语
+       - "content": 详细讲解（用法、搭配、例句、注意事项）。支持Markdown格式。
+       - "relatedVocab": 数组，相关的扩展词汇（例如如果是讲星期，列出所有星期单词）。
 
-        clearTimeout(timeoutId);
+    2. "smartQuiz": 数组，包含5道基于上述词汇讲解的选择题。每个对象包含：
+       - "question": 问题
+       - "options": 选项数组
+       - "answer": 正确答案索引(0-3)
+       - "explanation": 解析
 
-        if (!response.ok) {
-            throw new Error(`API request failed: ${response.statusText}`);
-        }
+    3. "irregularVerbs": 数组，找出本课词汇表中出现的所有不规则动词（如果有）。每个对象包含：
+       - "infinitive": 原形
+       - "meaning": 中文意思
+       - "conjugation": 对象，包含yo, tú, él, nosotros, vosotros, ellos的变位。
 
-        const data = await response.json();
-        let content = data.choices[0]?.message?.content || '';
-        if (!content.trim()) {
-            console.error('智能备课API返回空内容，完整响应:', JSON.stringify(data));
-            throw new Error('API返回了空内容，请检查API Key是否正确');
-        }
+    请确保输出是合法的JSON格式，不要包含Markdown代码块标记。
+    `;
 
-        // Clean up markdown code blocks if present
-        content = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    const content = await callMiMoAPI([
+        { role: "system", content: "你是MiMo，是小米公司研发的AI智能助手。你的知识截止日期是2024年12月。你是一位经验丰富的西班牙语老师，擅长深入浅出地讲解词汇和语法。请只返回JSON数据。" },
+        { role: "user", content: prompt }
+    ], { timeout: 90000, label: '智能备课' });
 
-        return JSON.parse(content);
-    } catch (error) {
-        if (error.name === 'AbortError') {
-            console.error('Request timed out');
-            throw new Error('智能备课超时，请重试');
-        }
-        console.error('Error generating smart content:', error);
-        throw error;
+    return parseJSONObject(content);
+}
+
+/**
+ * 生成听力练习内容
+ * 生成一段对话，包含说话者信息（男/女），以及一道四选一选择题
+ * @param {Array} vocab - 当前课词汇列表
+ * @param {Object} grammarTopic - {title, content}
+ * @param {Object} previousKnowledge - { vocab: [], grammar: [] }
+ */
+export async function generateListeningExercise(vocab, grammarTopic, previousKnowledge = null) {
+    const vocabList = vocab.map(v => `${v.spanish} = ${v.chinese}`).join(', ');
+    const theme = getRandomTheme();
+    const randomNames = getRandomNames(4);
+    const prevKnowledgeText = formatPreviousKnowledge(previousKnowledge);
+
+    const grammarInfo = grammarTopic ? `当前语法点：${grammarTopic.title}\n语法内容：${grammarTopic.content}` : '';
+
+    const prompt = `你是一位西班牙语教师，正在为DELE A1/A2级别考试备考的学生设计听力练习材料。
+
+请根据以下课程内容，生成一段简短的西班牙语对话（听力材料），并配套一道听力理解选择题。
+
+当前课词汇表（重点使用）：${vocabList}
+${grammarInfo}
+${prevKnowledgeText}
+场景主题：${theme}
+可用人名：${randomNames}
+
+**学生当前水平**：A1-A2初级水平，已学词汇和语法如上所列。
+
+要求：
+1. **对话长度**：4-6个轮次（turn），总词数控制在50-80词。适合A1-A2水平。
+2. **说话者设定**：
+   - 两个说话者，一男一女。
+   - 男性说话者使用阳性词汇自述（如：soy estudiante, soy médico, estoy contento）。
+   - 女性说话者使用阴性词汇自述（如：soy estudiante, soy médica, estoy contenta）。
+   - 这是考察重点！确保形容词、名词的阴阳性与说话者性别一致。
+3. **词汇限制**：主要使用当前课词汇，可适当结合已学词汇。绝对不要使用超纲词。
+4. **语法复杂度**：使用已学语法点（现在时、简单句等）。避免未学过的时态和虚拟式。
+5. **自然真实**：对话要自然、贴近日常生活，符合指定场景主题。
+6. **语速提示**：对话应适合用稍慢的语速朗读（模拟DELE A1/A2考试听力速度）。
+
+配套选择题要求：
+1. 一道四选一选择题，考查对对话内容的理解。
+2. 题目用西班牙语，选项用西班牙语。
+3. 难度适中，直接基于对话内容，不需要推理。
+4. 提供中文解析。
+
+请以JSON格式输出：
+{
+  "title": "对话标题（西班牙语）",
+  "speakers": [
+    { "name": "说话者名字", "gender": "male 或 female" },
+    { "name": "说话者名字", "gender": "male 或 female" }
+  ],
+  "dialogue": [
+    { "speaker": 0, "text": "说话内容（西班牙语）" },
+    { "speaker": 1, "text": "说话内容（西班牙语）" }
+  ],
+  "question": {
+    "question": "听力理解问题（西班牙语）",
+    "options": ["选项A", "选项B", "选项C", "选项D"],
+    "answer": 正确选项索引(0-3),
+    "explanation": "解析（中文）"
+  }
+}
+
+只返回JSON，不要其他文字。`;
+
+    const content = await callMiMoAPI([
+        {
+            role: 'system',
+            content: '你是MiMo，是小米公司研发的AI智能助手。你的知识截止日期是2024年12月。你是专业的西班牙语教师，擅长设计DELE考试备考材料。请严格遵守词汇限制，只返回JSON数据。'
+        },
+        { role: 'user', content: prompt }
+    ], { label: '听力练习生成' });
+
+    const result = parseJSONObject(content);
+    if (!result) {
+        throw new Error('无法解析AI返回的JSON格式，收到: ' + content.substring(0, 200));
     }
+    return result;
 }
