@@ -201,6 +201,48 @@ function cleanMarkdown(text) {
 }
 
 /**
+ * 在文本中寻找匹配的外层花括号 { ... }（正确处理嵌套）
+ * 返回第一个完整 JSON 对象的字符串，找不到返回 null
+ */
+function findBalancedJSON(text) {
+    let depth = 0;
+    let start = -1;
+    for (let i = 0; i < text.length; i++) {
+        if (text[i] === '{') {
+            if (depth === 0) start = i;
+            depth++;
+        } else if (text[i] === '}') {
+            depth--;
+            if (depth === 0 && start !== -1) {
+                return text.substring(start, i + 1);
+            }
+        }
+    }
+    return null;
+}
+
+/**
+ * 在文本中寻找匹配的外层方括号 [ ... ]
+ * 返回第一个完整 JSON 数组的字符串，找不到返回 null
+ */
+function findBalancedArray(text) {
+    let depth = 0;
+    let start = -1;
+    for (let i = 0; i < text.length; i++) {
+        if (text[i] === '[') {
+            if (depth === 0) start = i;
+            depth++;
+        } else if (text[i] === ']') {
+            depth--;
+            if (depth === 0 && start !== -1) {
+                return text.substring(start, i + 1);
+            }
+        }
+    }
+    return null;
+}
+
+/**
  * 从文本中提取并解析 JSON 数组
  */
 function parseJSONArray(text) {
@@ -209,15 +251,15 @@ function parseJSONArray(text) {
     // 方式1: 直接解析
     try { const r = JSON.parse(cleaned); if (Array.isArray(r)) return r; } catch {}
 
-    // 方式2: 匹配 JSON 数组
-    const arrMatch = cleaned.match(/\[[\s\S]*\]/);
-    if (arrMatch) { try { const r = JSON.parse(arrMatch[0]); if (Array.isArray(r)) return r; } catch {} }
+    // 方式2: 括号匹配找 JSON 数组
+    const arrStr = findBalancedArray(cleaned);
+    if (arrStr) { try { const r = JSON.parse(arrStr); if (Array.isArray(r)) return r; } catch {} }
 
-    // 方式3: 匹配 JSON 对象（可能 AI 返回了包装对象）
-    const objMatch = cleaned.match(/\{[\s\S]*\}/);
-    if (objMatch) {
+    // 方式3: 括号匹配找 JSON 对象（可能 AI 返回了包装对象）
+    const objStr = findBalancedJSON(cleaned);
+    if (objStr) {
         try {
-            const r = JSON.parse(objMatch[0]);
+            const r = JSON.parse(objStr);
             if (r.questions && Array.isArray(r.questions)) return r.questions;
             if (Array.isArray(r)) return r;
         } catch {}
@@ -232,10 +274,12 @@ function parseJSONArray(text) {
 function parseJSONObject(text) {
     const cleaned = cleanMarkdown(text);
 
+    // 方式1: 直接解析（整个文本就是纯 JSON）
     try { return JSON.parse(cleaned); } catch {}
 
-    const objMatch = cleaned.match(/\{[\s\S]*\}/);
-    if (objMatch) { try { return JSON.parse(objMatch[0]); } catch {} }
+    // 方式2: 括号匹配找第一个完整 JSON 对象（正确处理嵌套，不贪婪）
+    const objStr = findBalancedJSON(cleaned);
+    if (objStr) { try { return JSON.parse(objStr); } catch {} }
 
     return null;
 }
@@ -607,17 +651,30 @@ ${prevKnowledgeText}
 
 只返回JSON，不要其他文字。`;
 
-    const content = await callMiMoAPI([
+    const messages = [
         {
             role: 'system',
-            content: '你是MiMo，是小米公司研发的AI智能助手。你的知识截止日期是2024年12月。你是专业的西班牙语教师，擅长设计DELE考试备考材料。对话核心信息和题目选项必须使用学生已学过的词汇，可以少量使用简单超纲词使对话自然。只返回JSON数据。'
+            content: '你是MiMo，是小米公司研发的AI智能助手。你的知识截止日期是2024年12月。你是专业的西班牙语教师，擅长设计DELE考试备考材料。对话核心信息和题目选项必须使用学生已学过的词汇，可以少量使用简单超纲词使对话自然。只返回JSON数据，不要包含任何解释文字、代码块标记或前缀说明。'
         },
         { role: 'user', content: prompt }
-    ], { label: '听力练习生成' });
+    ];
 
-    const result = parseJSONObject(content);
-    if (!result) {
-        throw new Error('无法解析AI返回的JSON格式，收到: ' + content.substring(0, 200));
+    // 最多尝试3次：API空内容重试 + JSON解析失败重试
+    let lastError = null;
+    for (let i = 0; i < 3; i++) {
+        if (i > 0) {
+            console.log(`[听力练习] JSON解析失败，第${i + 1}次重试...`);
+        }
+
+        const content = await callMiMoAPI(messages, { label: '听力练习生成', retries: 1 });
+
+        const result = parseJSONObject(content);
+        if (result) return result;
+
+        // JSON 解析失败，记录日志
+        console.warn(`[听力练习] JSON解析失败 (attempt ${i + 1}/3)，收到内容:`, content.substring(0, 300));
+        lastError = '无法解析AI返回的JSON格式，收到: ' + content.substring(0, 150);
     }
-    return result;
+
+    throw new Error(lastError || '生成听力练习失败，请重试');
 }

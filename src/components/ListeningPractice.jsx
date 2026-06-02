@@ -162,23 +162,31 @@ export default function ListeningPractice({ vocab, grammarTitle, lessonTitle, le
         stopSpeaking();
         setLoading(true);
         setError(null);
-        setExercise(null);
+        // 保留当前 exercise，生成成功后再替换，失败则保留旧的
         setSelectedOption(null);
         setIsSubmitted(false);
         setShowExplanation(false);
         setHasPlayed(false);
-        setShowSubtitles(false); // 重置字幕为关闭
+        setShowSubtitles(false);
 
         try {
             const grammarTopic = grammarTitle ? { title: grammarTitle, content: '' } : null;
             const result = await generateListeningExercise(vocab, grammarTopic, previousKnowledge, lessonTitle);
             setExercise(result);
+            setSelectedOption(null);
+            setIsSubmitted(false);
         } catch (err) {
-            setError(err.message || '生成听力练习失败，请重试');
+            // 如果之前有题目，保留它，只显示小提示
+            if (exercise) {
+                setError(null); // 不覆盖整个页面
+                alert('生成新对话失败：' + (err.message || '请重试'));
+            } else {
+                setError(err.message || '生成听力练习失败，请重试');
+            }
         } finally {
             setLoading(false);
         }
-    }, [vocab, grammarTitle, previousKnowledge, stopSpeaking]);
+    }, [vocab, grammarTitle, previousKnowledge, lessonTitle, stopSpeaking]);
 
     // 初次加载自动生成；切换课程时清理
     useEffect(() => {
@@ -211,7 +219,8 @@ export default function ListeningPractice({ vocab, grammarTitle, lessonTitle, le
 
     // ========== 渲染 ==========
 
-    if (loading) {
+    // 初次加载（无题目且正在加载）
+    if (loading && !exercise) {
         return (
             <div className="flex flex-col items-center justify-center h-full gap-4 py-20">
                 <Loader2 size={40} className="text-spanish-red animate-spin" />
@@ -221,7 +230,8 @@ export default function ListeningPractice({ vocab, grammarTitle, lessonTitle, le
         );
     }
 
-    if (error) {
+    // 完全失败（无题目且有错误）
+    if (error && !exercise) {
         return (
             <div className="flex flex-col items-center justify-center h-full gap-4 py-20">
                 <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mb-2">
@@ -475,17 +485,20 @@ export default function ListeningPractice({ vocab, grammarTitle, lessonTitle, le
             {/* 底部操作栏 */}
             <div className="flex items-center justify-between pt-2 pb-4">
                 <div className="text-xs text-slate-400">
-                    {spanishVoiceCount > 0
-                        ? `已加载 ${spanishVoiceCount} 个西班牙语语音`
-                        : '未检测到西班牙语语音，使用默认语音'
+                    {loading
+                        ? '⏳ 正在生成新对话...'
+                        : spanishVoiceCount > 0
+                            ? `已加载 ${spanishVoiceCount} 个西班牙语语音`
+                            : '未检测到西班牙语语音，使用默认语音'
                     }
                 </div>
                 <button
                     onClick={generateNew}
-                    className="flex items-center gap-2 px-5 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-all font-medium text-sm"
+                    disabled={loading}
+                    className="flex items-center gap-2 px-5 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-all font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                    <RefreshCw size={16} />
-                    换一段对话
+                    {loading ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
+                    {loading ? '生成中...' : '换一段对话'}
                 </button>
             </div>
         </div>
