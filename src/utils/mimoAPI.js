@@ -153,6 +153,7 @@ async function callMiMoAPI(messages, options = {}) {
                 if (attempt > 0) {
                     console.log(`[MiMo API] ${label} 第${attempt + 1}次尝试成功`);
                 }
+                console.log(`[MiMo API] ${label} 返回内容长度: ${content.length}, 前200字符:`, content.substring(0, 200));
                 return content;
             }
 
@@ -201,38 +202,43 @@ function cleanMarkdown(text) {
 }
 
 /**
- * 在文本中寻找匹配的外层花括号 { ... }（正确处理嵌套）
- * 返回第一个完整 JSON 对象的字符串，找不到返回 null
+ * 在文本中寻找第一个完整的 JSON 块（{...} 或 [...]）
+ * 跳过字符串内部的括号，正确处理 \" 转义
+ * @param {string} text - 待搜索文本
+ * @param {string} openChar - '{' 或 '['
+ * @param {string} closeChar - '}' 或 ']'
+ * @returns {string|null} 提取到的 JSON 字符串，找不到返回 null
  */
-function findBalancedJSON(text) {
+function findJSONBlock(text, openChar, closeChar) {
     let depth = 0;
     let start = -1;
-    for (let i = 0; i < text.length; i++) {
-        if (text[i] === '{') {
-            if (depth === 0) start = i;
-            depth++;
-        } else if (text[i] === '}') {
-            depth--;
-            if (depth === 0 && start !== -1) {
-                return text.substring(start, i + 1);
-            }
-        }
-    }
-    return null;
-}
+    let inString = false;
 
-/**
- * 在文本中寻找匹配的外层方括号 [ ... ]
- * 返回第一个完整 JSON 数组的字符串，找不到返回 null
- */
-function findBalancedArray(text) {
-    let depth = 0;
-    let start = -1;
     for (let i = 0; i < text.length; i++) {
-        if (text[i] === '[') {
+        const ch = text[i];
+
+        // 处理字符串内的转义字符 \" \n \\ 等
+        if (inString) {
+            if (ch === '\\') {
+                i++; // 跳过转义后的下一个字符
+                continue;
+            }
+            if (ch === '"') {
+                inString = false;
+            }
+            continue;
+        }
+
+        // 不在字符串内
+        if (ch === '"') {
+            inString = true;
+            continue;
+        }
+
+        if (ch === openChar) {
             if (depth === 0) start = i;
             depth++;
-        } else if (text[i] === ']') {
+        } else if (ch === closeChar) {
             depth--;
             if (depth === 0 && start !== -1) {
                 return text.substring(start, i + 1);
@@ -251,12 +257,12 @@ function parseJSONArray(text) {
     // 方式1: 直接解析
     try { const r = JSON.parse(cleaned); if (Array.isArray(r)) return r; } catch {}
 
-    // 方式2: 括号匹配找 JSON 数组
-    const arrStr = findBalancedArray(cleaned);
+    // 方式2: 找第一个完整 JSON 数组
+    const arrStr = findJSONBlock(cleaned, '[', ']');
     if (arrStr) { try { const r = JSON.parse(arrStr); if (Array.isArray(r)) return r; } catch {} }
 
-    // 方式3: 括号匹配找 JSON 对象（可能 AI 返回了包装对象）
-    const objStr = findBalancedJSON(cleaned);
+    // 方式3: 找第一个完整 JSON 对象（可能 AI 返回了包装对象）
+    const objStr = findJSONBlock(cleaned, '{', '}');
     if (objStr) {
         try {
             const r = JSON.parse(objStr);
@@ -277,8 +283,8 @@ function parseJSONObject(text) {
     // 方式1: 直接解析（整个文本就是纯 JSON）
     try { return JSON.parse(cleaned); } catch {}
 
-    // 方式2: 括号匹配找第一个完整 JSON 对象（正确处理嵌套，不贪婪）
-    const objStr = findBalancedJSON(cleaned);
+    // 方式2: 找第一个完整 JSON 对象（跳过字符串内的括号）
+    const objStr = findJSONBlock(cleaned, '{', '}');
     if (objStr) { try { return JSON.parse(objStr); } catch {} }
 
     return null;
@@ -668,11 +674,20 @@ ${prevKnowledgeText}
 
         const content = await callMiMoAPI(messages, { label: '听力练习生成', retries: 1 });
 
-        const result = parseJSONObject(content);
-        if (result) return result;
+        // 详细日志：方便调试
+        console.log(`[听力练习] API返回内容 (attempt ${i + 1}):`, content);
 
-        // JSON 解析失败，记录日志
-        console.warn(`[听力练习] JSON解析失败 (attempt ${i + 1}/3)，收到内容:`, content.substring(0, 300));
+        const result = parseJSONObject(content);
+        if (result) {
+            console.log(`[听力练习] JSON解析成功 (attempt ${i + 1})`);
+            return result;
+        }
+
+        // JSON 解析失败，记录完整内容方便排查
+        console.error(`[听力练习] JSON解析失败 (attempt ${i + 1}/3)`);
+        console.error(`[听力练习] 原始内容:`, content);
+        console.error(`[听力练习] 内容长度:`, content.length);
+        console.error(`[听力练习] 前100字符charCode:`, [...content.substring(0, 100)].map(c => c.charCodeAt(0)));
         lastError = '无法解析AI返回的JSON格式，收到: ' + content.substring(0, 150);
     }
 
